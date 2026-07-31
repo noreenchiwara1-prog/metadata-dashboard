@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Metadata Quality Dashboard — IMF Creative Solutions</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:#0f1623;min-height:100vh;color:#e2e8f0;font-size:13px;overflow-x:hidden}
+
+/* ── SHUTTER OVERLAY ── */
+.shutter-overlay{position:fixed;inset:0;z-index:9999;pointer-events:none;display:flex;align-items:center;justify-content:center;background:#000;opacity:0;transition:opacity 0.1s}
+.shutter-overlay.active{pointer-events:all}
+.shutter-blades{position:relative;width:200px;height:200px}
+.blade{position:absolute;top:50%;left:50%;width:100px;height:100px;background:#111;transform-origin:0 0}
+.shutter-text{position:absolute;color:#fff;font-size:14px;font-weight:600;text-align:center;letter-spacing:0.05em;opacity:0}
+.shutter-text.show{animation:fadeInText 0.5s 0.8s forwards}
+@keyframes fadeInText{to{opacity:1}}
+
+/* ── LAYOUT ── */
+.shell{display:flex;min-height:100vh}
+
+/* ── SIDEBAR ── */
+.sidebar{width:220px;flex-shrink:0;position:fixed;top:0;left:0;height:100vh;background:#080e1a;border-right:1px solid rgba(255,255,255,0.06);display:flex;flex-direction:column;z-index:100;overflow:hidden}
+.sidebar::before{content:'';position:absolute;top:-60px;left:-60px;width:200px;height:200px;background:radial-gradient(circle,rgba(96,150,245,0.08),transparent 70%);pointer-events:none}
+
+.logo-wrap{padding:22px 18px 16px;border-bottom:1px solid rgba(255,255,255,0.06);position:relative}
+.logo-aperture{width:38px;height:38px;margin-bottom:10px;position:relative}
+.logo-aperture svg{width:38px;height:38px;animation:rotateSlow 12s linear infinite}
+@keyframes rotateSlow{to{transform:rotate(360deg)}}
+.logo-imf{font-size:9px;font-weight:700;color:rgba(255,255,255,0.28);letter-spacing:0.18em;text-transform:uppercase;margin-bottom:3px}
+.logo-name{font-size:18px;font-weight:800;color:#fff;line-height:1.15;letter-spacing:-0.4px}
+.logo-name span{color:#6096f5}
+.logo-tag{display:inline-flex;align-items:center;gap:5px;background:rgba(96,150,245,0.1);border:1px solid rgba(96,150,245,0.18);border-radius:5px;padding:3px 9px;font-size:9px;font-weight:700;color:#6096f5;letter-spacing:0.06em;margin-top:8px}
+.logo-tag svg{width:10px;height:10px}
+
+.nav{padding:14px 10px;flex:1;display:flex;flex-direction:column;gap:2px}
+.nav-section{font-size:9px;font-weight:700;color:rgba(255,255,255,0.2);letter-spacing:0.1em;text-transform:uppercase;padding:8px 12px 4px;margin-top:4px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 12px;font-size:12px;color:rgba(255,255,255,0.38);cursor:pointer;border-radius:8px;transition:all 0.2s;position:relative;overflow:hidden}
+.nav-item::before{content:'';position:absolute;left:0;top:0;height:100%;width:2px;background:#6096f5;transform:scaleY(0);transition:transform 0.2s;border-radius:0 2px 2px 0}
+.nav-item:hover{background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.75)}
+.nav-item.active{background:rgba(96,150,245,0.1);color:#fff;font-weight:600}
+.nav-item.active::before{transform:scaleY(1)}
+.nav-icon{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.2s}
+.nav-item.active .nav-icon{background:rgba(96,150,245,0.2)}
+.nav-item:hover .nav-icon{background:rgba(255,255,255,0.06)}
+.nav-icon svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.nav-badge{margin-left:auto;background:rgba(96,150,245,0.2);color:#7aa3f0;font-size:9px;font-weight:700;padding:2px 6px;border-radius:10px;display:none}
+.nav-badge.show{display:block}
+
+.sidebar-card{margin:8px 12px;background:linear-gradient(135deg,rgba(96,150,245,0.08),rgba(139,92,246,0.06));border:1px solid rgba(96,150,245,0.12);border-radius:10px;padding:14px;position:relative;overflow:hidden}
+.sidebar-card::after{content:'';position:absolute;bottom:-20px;right:-20px;width:70px;height:70px;border-radius:50%;background:radial-gradient(circle,rgba(96,150,245,0.15),transparent);pointer-events:none}
+.sc-illus{margin-bottom:10px}
+.sc-title{font-size:11px;font-weight:700;color:#6096f5;margin-bottom:5px;letter-spacing:0.02em}
+.sc-text{font-size:10px;color:rgba(255,255,255,0.32);line-height:1.55}
+
+.sidebar-foot{padding:12px 18px;border-top:1px solid rgba(255,255,255,0.05);font-size:9px;color:rgba(255,255,255,0.18);line-height:1.6}
+
+/* ── MAIN ── */
+.main{margin-left:220px;flex:1;display:flex;flex-direction:column}
+
+/* ── TOPBAR ── */
+.topbar{background:rgba(8,14,26,0.95);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,0.06);padding:12px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:99}
+.tb-title{font-size:15px;font-weight:700;color:#fff;letter-spacing:-0.3px}
+.tb-sub{font-size:10px;color:rgba(255,255,255,0.2);margin-top:1px;letter-spacing:0.07em;text-transform:uppercase}
+.tb-right{display:flex;align-items:center;gap:8px}
+.ts{font-size:10px;color:rgba(255,255,255,0.22);background:rgba(255,255,255,0.04);padding:4px 10px;border-radius:5px;border:1px solid rgba(255,255,255,0.06);display:none;white-space:nowrap}
+
+.btn{padding:8px 16px;border:none;border-radius:8px;cursor:pointer;font-size:11px;font-weight:600;transition:all 0.2s;letter-spacing:0.02em;white-space:nowrap;position:relative;overflow:hidden}
+.btn::after{content:'';position:absolute;top:50%;left:50%;width:0;height:0;background:rgba(255,255,255,0.2);border-radius:50%;transform:translate(-50%,-50%);transition:width 0.4s,height 0.4s,opacity 0.4s;opacity:0}
+.btn:active::after{width:200px;height:200px;opacity:0}
+.btn-p{background:linear-gradient(135deg,#4f82e8,#6c6ef5);color:#fff;box-shadow:0 2px 8px rgba(96,150,245,0.25)}
+.btn-p:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(96,150,245,0.38)}
+.btn-p:active{transform:translateY(0)}
+.btn-s{background:linear-gradient(135deg,#0d7a4a,#0f9a5a);color:#fff;box-shadow:0 2px 8px rgba(14,122,74,0.25);display:none}
+.btn-s:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(14,122,74,0.38)}
+.btn-ghost{background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.45);border:1px solid rgba(255,255,255,0.08);display:none}
+.btn-ghost:hover{background:rgba(255,255,255,0.09);color:rgba(255,255,255,0.7)}
+
+/* ── CONTENT ── */
+.content{padding:20px 24px;flex:1}
+.page{display:none}.page.active{display:block}
+
+/* ── KPI STRIP ── */
+.kpi-strip{display:grid;gap:10px;margin-bottom:18px}
+.kpi-card{background:linear-gradient(135deg,#141d2e,#18253a);border:1px solid rgba(255,255,255,0.07);border-radius:11px;padding:14px 16px;position:relative;overflow:hidden;transition:transform 0.15s,box-shadow 0.15s;cursor:default}
+.kpi-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,0.3)}
+.kpi-card::before{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;border-radius:0 0 11px 11px}
+.kpi-lbl{font-size:9px;font-weight:600;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:0.09em;margin-bottom:5px;display:flex;align-items:center;gap:6px}
+.kpi-icon{width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.kpi-icon svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.kpi-val{font-size:24px;font-weight:800;color:#fff;letter-spacing:-0.5px;line-height:1}
+.kpi-sub{font-size:9px;color:rgba(255,255,255,0.22);margin-top:4px}
+.kpi-trend{position:absolute;bottom:0;left:0;right:0;height:32px;opacity:0.4}
+
+/* ── WORKFLOW ── */
+.workflow{background:linear-gradient(135deg,#141d2e,#18253a);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:18px 20px;margin-bottom:18px}
+.workflow-title{font-size:10px;font-weight:700;color:rgba(255,255,255,0.25);text-transform:uppercase;letter-spacing:0.09em;margin-bottom:16px}
+.workflow-steps{display:flex;align-items:flex-start;gap:0;position:relative}
+.workflow-steps::before{content:'';position:absolute;top:18px;left:40px;right:40px;height:1px;background:linear-gradient(90deg,rgba(96,150,245,0.3),rgba(96,150,245,0.1));z-index:0}
+.wf-step{flex:1;display:flex;flex-direction:column;align-items:center;text-align:center;position:relative;z-index:1}
+.wf-circle{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:8px;position:relative;transition:all 0.2s}
+.wf-circle svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.wf-step:nth-child(1) .wf-circle{background:rgba(96,150,245,0.15);border:1px solid rgba(96,150,245,0.3);color:#6096f5}
+.wf-step:nth-child(2) .wf-circle{background:rgba(96,150,245,0.12);border:1px solid rgba(96,150,245,0.25);color:#7aa3f0}
+.wf-step:nth-child(3) .wf-circle{background:rgba(139,92,246,0.15);border:1px solid rgba(139,92,246,0.3);color:#a78bfa}
+.wf-step:nth-child(4) .wf-circle{background:rgba(96,150,245,0.12);border:1px solid rgba(96,150,245,0.25);color:#7aa3f0}
+.wf-step:nth-child(5) .wf-circle{background:rgba(34,201,122,0.12);border:1px solid rgba(34,201,122,0.25);color:#22c97a}
+.wf-step:nth-child(6) .wf-circle{background:rgba(34,201,122,0.15);border:1px solid rgba(34,201,122,0.3);color:#22c97a}
+.wf-step.active .wf-circle{box-shadow:0 0 16px rgba(139,92,246,0.4)}
+.wf-num{font-size:8px;font-weight:700;color:rgba(255,255,255,0.2);margin-bottom:2px}
+.wf-label{font-size:10px;font-weight:600;color:rgba(255,255,255,0.65)}
+.wf-desc{font-size:9px;color:rgba(255,255,255,0.28);margin-top:2px;line-height:1.4}
+
+/* ── UPLOAD ZONE ── */
+.upload-zone{border:1px dashed rgba(96,150,245,0.25);border-radius:14px;padding:46px 36px;text-align:center;cursor:pointer;background:rgba(96,150,245,0.02);transition:all 0.2s;position:relative;overflow:hidden;margin-bottom:18px}
+.upload-zone:hover{border-color:rgba(96,150,245,0.5);background:rgba(96,150,245,0.05)}
+.uz-illus{margin-bottom:18px;display:flex;justify-content:center}
+.uz-title{font-size:17px;font-weight:800;color:#fff;margin-bottom:6px;letter-spacing:-0.3px}
+.uz-sub{font-size:11px;color:rgba(255,255,255,0.28);margin-bottom:24px}
+.uz-steps{display:flex;justify-content:center;gap:0}
+.uz-step{display:flex;align-items:center;gap:5px;padding:5px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);font-size:10px;color:rgba(255,255,255,0.35);white-space:nowrap;transition:all 0.15s}
+.uz-step:first-child{border-radius:6px 0 0 6px}
+.uz-step:last-child{border-radius:0 6px 6px 0}
+.uz-step:not(:first-child){border-left:none}
+.uz-step:hover{background:rgba(96,150,245,0.08);color:rgba(255,255,255,0.6)}
+.uz-num{width:14px;height:14px;border-radius:50%;background:#6096f5;display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:700;color:#fff;flex-shrink:0}
+
+/* ── GRID LAYOUTS ── */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:14px}
+.grid-12{display:grid;grid-template-columns:1fr 2fr;gap:12px;margin-bottom:14px}
+.grid-21{display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:14px}
+
+/* ── PANEL ── */
+.panel{background:linear-gradient(135deg,#141d2e,#18253a);border:1px solid rgba(255,255,255,0.07);border-radius:11px;padding:16px}
+.panel-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.panel-title{font-size:10px;font-weight:700;color:rgba(255,255,255,0.28);text-transform:uppercase;letter-spacing:0.09em}
+.panel-link{font-size:10px;color:#6096f5;cursor:pointer;opacity:0.7}
+.panel-link:hover{opacity:1}
+
+/* ── SECTION HDR ── */
+.shd{font-size:10px;font-weight:700;color:rgba(255,255,255,0.22);text-transform:uppercase;letter-spacing:0.09em;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.shd::after{content:'';flex:1;height:1px;background:rgba(255,255,255,0.05)}
+
+/* ── DONUT ── */
+.donut-wrap{display:flex;flex-direction:column;align-items:center;gap:12px}
+.dl{display:flex;flex-direction:column;gap:5px;width:100%}
+.dl-item{display:flex;align-items:center;gap:6px;font-size:10px;color:rgba(255,255,255,0.45)}
+.dl-dot{width:7px;height:7px;border-radius:2px;flex-shrink:0}
+
+/* ── FOLDER LIST ── */
+.f-list{display:flex;flex-direction:column;gap:8px}
+.f-row{cursor:pointer;padding:6px 8px;border-radius:7px;transition:background 0.15s}
+.f-row:hover{background:rgba(255,255,255,0.03)}
+.f-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+.f-name{font-size:11px;color:rgba(255,255,255,0.6);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:65%}
+.f-count{font-size:11px;font-weight:700;color:#6096f5}
+.f-track{background:rgba(255,255,255,0.05);border-radius:3px;height:5px;overflow:hidden}
+.f-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,#4f82e8,#6c6ef5)}
+.f-tags{display:flex;gap:3px;flex-wrap:wrap;margin-top:4px}
+
+/* ── AI INSIGHT ── */
+.insight-list{display:flex;flex-direction:column;gap:8px}
+.insight-item{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;cursor:pointer;transition:all 0.15s}
+.insight-item:hover{background:rgba(96,150,245,0.06);border-color:rgba(96,150,245,0.15)}
+.insight-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.insight-icon svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.insight-title{font-size:11px;font-weight:600;color:rgba(255,255,255,0.75);margin-bottom:2px}
+.insight-sub{font-size:10px;color:rgba(255,255,255,0.3);line-height:1.4}
+.insight-arr{margin-left:auto;color:rgba(255,255,255,0.2);font-size:14px;align-self:center}
+
+/* ── BADGES ── */
+.badge{display:inline-block;padding:2px 7px;border-radius:4px;font-size:9px;font-weight:600;margin:1px}
+.b-r{background:rgba(220,53,69,0.14);color:#e87880;border:1px solid rgba(220,53,69,0.16)}
+.b-y{background:rgba(200,150,30,0.14);color:#c9a83a;border:1px solid rgba(200,150,30,0.16)}
+.b-b{background:rgba(96,150,245,0.14);color:#7aa3f0;border:1px solid rgba(96,150,245,0.16)}
+.b-g{background:rgba(34,201,122,0.14);color:#3dba7a;border:1px solid rgba(34,201,122,0.16)}
+
+/* ── TABLE ── */
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:11px}
+th{text-align:left;font-size:9px;font-weight:700;color:rgba(255,255,255,0.2);padding:7px 10px;border-bottom:1px solid rgba(255,255,255,0.05);text-transform:uppercase;letter-spacing:0.06em;white-space:nowrap}
+td{padding:9px 10px;border-bottom:1px solid rgba(255,255,255,0.04);color:rgba(255,255,255,0.62);vertical-align:top;line-height:1.5}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,0.02)}
+
+/* ── SUGGEST ── */
+.sg{margin-bottom:3px;font-size:10px;line-height:1.5;color:rgba(255,255,255,0.48)}
+.sg strong{color:rgba(255,255,255,0.78);font-weight:600}
+.src{display:inline-block;padding:1px 4px;border-radius:3px;font-size:8px;font-weight:600;margin-left:2px;background:rgba(96,150,245,0.15);color:#7aa3f0}
+.src-ai{background:rgba(124,58,237,0.15);color:#b08af5}
+.src-cr{background:rgba(30,180,100,0.15);color:#3dba7a}
+.src-def{background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.3)}
+
+/* ── LINK ── */
+.lnk{display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:5px;border:1px solid rgba(96,150,245,0.2);color:#7aa3f0;font-size:10px;background:transparent;cursor:pointer;text-decoration:none;transition:all 0.15s}
+.lnk:hover{background:rgba(96,150,245,0.1)}
+
+/* ── PROGRESS ── */
+.prog-item{margin-bottom:11px}
+.prog-hd{display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px;color:rgba(255,255,255,0.4)}
+.prog-track{background:rgba(255,255,255,0.06);border-radius:3px;height:6px;overflow:hidden}
+.prog-fill{height:100%;border-radius:3px;transition:width 0.8s ease}
+
+/* ── PRIORITY ── */
+.pri{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.05);font-size:12px;color:rgba(255,255,255,0.48)}
+.pri:last-child{border-bottom:none}
+.pri-n{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;background:rgba(96,150,245,0.12);color:#7aa3f0;border:1px solid rgba(96,150,245,0.18)}
+
+/* ── MISC ── */
+.empty{text-align:center;padding:28px;color:rgba(255,255,255,0.18);font-size:12px}
+.proc{text-align:center;padding:40px}
+.proc-icon{display:flex;justify-content:center;margin-bottom:14px}
+.proc-t{font-size:14px;font-weight:700;color:rgba(255,255,255,0.55);margin-bottom:4px}
+.proc-s{font-size:11px;color:rgba(255,255,255,0.25)}
+.proc-count{font-size:13px;color:#6096f5;font-weight:600;margin-top:8px}
+
+::-webkit-scrollbar{width:3px;height:3px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.07);border-radius:3px}
+
+/* ── SHUTTER ANIMATION ── */
+@keyframes shutterClose{0%{transform:scaleX(0) scaleY(0)}100%{transform:scaleX(1) scaleY(1)}}
+@keyframes shutterOpen{0%{opacity:1}100%{opacity:0}}
+.shutter-container{position:fixed;inset:0;z-index:9999;pointer-events:none;display:none;background:#000}
+.shutter-container.running{display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:all}
+.aperture-svg{animation:apertureRotate 0.6s ease-in-out}
+@keyframes apertureRotate{0%{transform:rotate(0deg) scale(0.5);opacity:0}30%{transform:rotate(60deg) scale(1.1);opacity:1}70%{transform:rotate(90deg) scale(1);opacity:1}100%{transform:rotate(0deg) scale(1);opacity:1}}
+.shutter-msg{color:#fff;font-size:14px;font-weight:600;margin-top:20px;letter-spacing:0.05em;opacity:0;animation:fadeUp 0.4s 0.5s forwards}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.shutter-sub{color:rgba(255,255,255,0.45);font-size:11px;margin-top:6px;opacity:0;animation:fadeUp 0.4s 0.7s forwards}
+
+/* ── ANIMATED CAMERA UPLOAD ── */
+.cam-stage{position:relative;width:140px;height:140px;margin:0 auto;display:flex;align-items:center;justify-content:center}
+.cam-glow-ring{position:absolute;top:50%;left:50%;width:120px;height:120px;border-radius:50%;border:1px solid rgba(96,150,245,0.15);transform:translate(-50%,-50%);animation:glowPulse 3s ease-in-out infinite}
+@keyframes glowPulse{0%,100%{box-shadow:0 0 0 0 rgba(96,150,245,0.1);border-color:rgba(96,150,245,0.15)}50%{box-shadow:0 0 30px 8px rgba(96,150,245,0.12);border-color:rgba(96,150,245,0.35)}}
+.cam-svg{position:relative;z-index:2}
+#aperture{transform-origin:0 0;animation:apertureIdle 8s linear infinite}
+@keyframes apertureIdle{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+.shutter-btn{animation:shutterReady 4s ease-in-out infinite}
+@keyframes shutterReady{0%,85%,100%{r:5;fill:rgba(96,150,245,0.2)}88%{r:4.2;fill:rgba(96,150,245,0.5)}92%{r:5;fill:rgba(96,150,245,0.2)}}
+.lens-flare{position:absolute;top:50%;left:-30%;width:200%;height:100%;background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,0.04) 50%,transparent 100%);animation:lensFlare 6s ease-in-out infinite;z-index:3;pointer-events:none;border-radius:50%}
+@keyframes lensFlare{0%,100%{transform:translateX(-100%) rotate(-15deg);opacity:0}45%{opacity:0}55%{opacity:1}70%{transform:translateX(100%) rotate(-15deg);opacity:0}}
+.cam-blink{position:absolute;inset:0;border-radius:50%;background:#fff;opacity:0;z-index:4;pointer-events:none;animation:camShutterBlink 4s ease-in-out infinite}
+@keyframes camShutterBlink{0%,82%,100%{opacity:0}85%{opacity:0.4}88%{opacity:0}90%{opacity:0.15}93%{opacity:0}}
+.cam-ready-dot{position:absolute;top:12px;right:12px;width:8px;height:8px;border-radius:50%;background:#22c97a;box-shadow:0 0 8px rgba(34,201,122,0.6);animation:dotBlink 2s ease-in-out infinite;z-index:5}
+@keyframes dotBlink{0%,100%{opacity:1;box-shadow:0 0 8px rgba(34,201,122,0.6)}50%{opacity:0.4;box-shadow:0 0 4px rgba(34,201,122,0.3)}}
+</style>
+</head>
+<body>
+
+<!-- SHUTTER ANIMATION -->
+<div class="shutter-container" id="shutterContainer">
+  <svg class="aperture-svg" width="120" height="120" viewBox="0 0 120 120" role="img" aria-label="Camera aperture animation">
+    <defs>
+      <radialGradient id="aptGrad" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#6096f5" stop-opacity="0.8"/>
+        <stop offset="100%" stop-color="#4f82e8" stop-opacity="0.2"/>
+      </radialGradient>
+    </defs>
+    <!-- Aperture blades -->
+    <g id="aptBlades" transform="translate(60,60)">
+      <ellipse rx="28" ry="8" fill="rgba(96,150,245,0.3)" stroke="#6096f5" stroke-width="0.5" transform="rotate(0)"/>
+      <ellipse rx="28" ry="8" fill="rgba(96,150,245,0.3)" stroke="#6096f5" stroke-width="0.5" transform="rotate(30)"/>
+      <ellipse rx="28" ry="8" fill="rgba(96,150,245,0.3)" stroke="#6096f5" stroke-width="0.5" transform="rotate(60)"/>
+      <ellipse rx="28" ry="8" fill="rgba(96,150,245,0.3)" stroke="#6096f5" stroke-width="0.5" transform="rotate(90)"/>
+      <ellipse rx="28" ry="8" fill="rgba(96,150,245,0.3)" stroke="#6096f5" stroke-width="0.5" transform="rotate(120)"/>
+      <ellipse rx="28" ry="8" fill="rgba(96,150,245,0.3)" stroke="#6096f5" stroke-width="0.5" transform="rotate(150)"/>
+    </g>
+    <!-- Outer ring -->
+    <circle cx="60" cy="60" r="54" fill="none" stroke="rgba(96,150,245,0.4)" stroke-width="1"/>
+    <circle cx="60" cy="60" r="42" fill="none" stroke="rgba(96,150,245,0.2)" stroke-width="0.5"/>
+    <!-- Centre dot -->
+    <circle cx="60" cy="60" r="8" fill="url(#aptGrad)"/>
+    <circle cx="60" cy="60" r="4" fill="#6096f5"/>
+  </svg>
+  <div class="shutter-msg" id="shutterMsg">Aperture open — analysing your library...</div>
+  <div class="shutter-sub" id="shutterSub">Checking fields · Grouping folders · Generating captions</div>
+</div>
+
+<div class="shell">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="logo-wrap">
+      <!-- Rotating aperture logo -->
+      <div class="logo-aperture">
+        <svg viewBox="0 0 38 38" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <circle cx="19" cy="19" r="17" stroke="rgba(96,150,245,0.3)" stroke-width="1"/>
+          <circle cx="19" cy="19" r="11" stroke="rgba(96,150,245,0.5)" stroke-width="0.8"/>
+          <ellipse cx="19" cy="19" rx="11" ry="3.5" fill="rgba(96,150,245,0.15)" stroke="#6096f5" stroke-width="0.6" transform="rotate(0 19 19)"/>
+          <ellipse cx="19" cy="19" rx="11" ry="3.5" fill="rgba(96,150,245,0.15)" stroke="#6096f5" stroke-width="0.6" transform="rotate(60 19 19)"/>
+          <ellipse cx="19" cy="19" rx="11" ry="3.5" fill="rgba(96,150,245,0.15)" stroke="#6096f5" stroke-width="0.6" transform="rotate(120 19 19)"/>
+          <circle cx="19" cy="19" r="3" fill="#6096f5"/>
+        </svg>
+      </div>
+      <div class="logo-imf">IMF</div>
+      <div class="logo-name"><span>Creative</span><br>Solutions</div>
+      <div class="logo-tag">
+        <svg viewBox="0 0 10 10" fill="none" aria-hidden="true"><polygon points="5,1 6.5,4 10,4.5 7.5,7 8,10 5,8.5 2,10 2.5,7 0,4.5 3.5,4" fill="#6096f5"/></svg>
+        Metadata Assistant
+      </div>
+    </div>
+
+    <div class="nav">
+      <div class="nav-section">Analytics</div>
+      <div class="nav-item active" onclick="nav('overview',this)">
+        <div class="nav-icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></div>
+        Overview
+        <span class="nav-badge" id="badge-overview">!</span>
+      </div>
+      <div class="nav-item" onclick="nav('batch',this)">
+        <div class="nav-icon"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div>
+        Batch edit
+        <span class="nav-badge" id="badge-batch">0</span>
+      </div>
+      <div class="nav-item" onclick="nav('manual',this)">
+        <div class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg></div>
+        Manual review
+        <span class="nav-badge" id="badge-manual">0</span>
+      </div>
+      <div class="nav-section">Reports</div>
+      <div class="nav-item" onclick="nav('progress',this)">
+        <div class="nav-icon"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+        Progress
+      </div>
+    </div>
+
+    <!-- Creative card with SVG illustration -->
+    <div class="sidebar-card">
+      <div class="sc-illus">
+        <svg width="100%" height="56" viewBox="0 0 160 56" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Creative Solutions illustration — camera and film strip">
+          <!-- Film strip -->
+          <rect x="4" y="18" width="80" height="22" rx="3" fill="rgba(96,150,245,0.08)" stroke="rgba(96,150,245,0.2)" stroke-width="0.8"/>
+          <rect x="8" y="22" width="8" height="14" rx="1.5" fill="rgba(96,150,245,0.15)" stroke="rgba(96,150,245,0.3)" stroke-width="0.6"/>
+          <rect x="20" y="22" width="8" height="14" rx="1.5" fill="rgba(96,150,245,0.12)" stroke="rgba(96,150,245,0.25)" stroke-width="0.6"/>
+          <rect x="32" y="22" width="8" height="14" rx="1.5" fill="rgba(96,150,245,0.18)" stroke="rgba(96,150,245,0.35)" stroke-width="0.6"/>
+          <rect x="44" y="22" width="8" height="14" rx="1.5" fill="rgba(96,150,245,0.1)" stroke="rgba(96,150,245,0.2)" stroke-width="0.6"/>
+          <rect x="56" y="22" width="8" height="14" rx="1.5" fill="rgba(96,150,245,0.15)" stroke="rgba(96,150,245,0.3)" stroke-width="0.6"/>
+          <rect x="68" y="22" width="8" height="14" rx="1.5" fill="rgba(96,150,245,0.12)" stroke="rgba(96,150,245,0.25)" stroke-width="0.6"/>
+          <!-- Sprocket holes top -->
+          <circle cx="12" cy="21" r="1.5" fill="rgba(96,150,245,0.3)"/>
+          <circle cx="24" cy="21" r="1.5" fill="rgba(96,150,245,0.3)"/>
+          <circle cx="36" cy="21" r="1.5" fill="rgba(96,150,245,0.3)"/>
+          <circle cx="48" cy="21" r="1.5" fill="rgba(96,150,245,0.3)"/>
+          <circle cx="60" cy="21" r="1.5" fill="rgba(96,150,245,0.3)"/>
+          <circle cx="72" cy="21" r="1.5" fill="rgba(96,150,245,0.3)"/>
+          <!-- Camera body -->
+          <rect x="100" y="12" width="52" height="34" rx="5" fill="rgba(96,150,245,0.1)" stroke="rgba(96,150,245,0.25)" stroke-width="0.8"/>
+          <!-- Viewfinder bump -->
+          <rect x="108" y="7" width="16" height="8" rx="3" fill="rgba(96,150,245,0.12)" stroke="rgba(96,150,245,0.2)" stroke-width="0.7"/>
+          <!-- Lens -->
+          <circle cx="126" cy="30" r="11" fill="rgba(96,150,245,0.08)" stroke="rgba(96,150,245,0.3)" stroke-width="0.8"/>
+          <circle cx="126" cy="30" r="7" fill="rgba(96,150,245,0.12)" stroke="rgba(96,150,245,0.4)" stroke-width="0.6"/>
+          <circle cx="126" cy="30" r="3.5" fill="rgba(96,150,245,0.25)"/>
+          <!-- Shutter button -->
+          <circle cx="143" cy="16" r="3" fill="rgba(96,150,245,0.3)" stroke="rgba(96,150,245,0.5)" stroke-width="0.6"/>
+          <!-- Flash dot -->
+          <circle cx="107" cy="30" r="2.5" fill="rgba(255,220,100,0.3)" stroke="rgba(255,220,100,0.5)" stroke-width="0.6"/>
+          <!-- Connecting dots -->
+          <circle cx="90" cy="29" r="1.5" fill="rgba(96,150,245,0.2)"/>
+          <circle cx="95" cy="29" r="1" fill="rgba(96,150,245,0.15)"/>
+        </svg>
+      </div>
+      <div class="sc-title">We are creatives</div>
+      <div class="sc-text">Every great photo deserves great metadata. Precision for every pixel — that is our craft.</div>
+    </div>
+
+    <div class="sidebar-foot">IMF Creative Solutions · Built with care</div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <div class="tb-title">Metadata Quality Dashboard</div>
+        <div class="tb-sub">Monitor · Analyze · Prioritize · Import</div>
+      </div>
+      <div class="tb-right">
+        <span class="ts" id="ts"></span>
+        <button class="btn btn-ghost" id="resetBtn" onclick="doReset()">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true" style="display:inline;vertical-align:-1px;margin-right:4px"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.51"/></svg>
+          New upload
+        </button>
+        <button class="btn btn-p" onclick="document.getElementById('fi').click()">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true" style="display:inline;vertical-align:-1px;margin-right:4px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Upload CSV
+        </button>
+        <button class="btn btn-s" id="dlBtn" onclick="doDownload()">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true" style="display:inline;vertical-align:-1px;margin-right:4px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download Re-Import
+        </button>
+        <input type="file" id="fi" accept=".csv" style="display:none" onchange="loadCSV(event)">
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- OVERVIEW PAGE -->
+      <div id="page-overview" class="page active">
+
+        <!-- UPLOAD ZONE -->
+        <div class="upload-zone" id="uz" onclick="document.getElementById('fi').click()">
+          <div class="uz-illus">
+            <div class="cam-stage" aria-label="Animated camera — ready to upload">
+              <div class="lens-flare"></div>
+              <div class="cam-glow-ring"></div>
+              <svg class="cam-svg" width="140" height="140" viewBox="0 0 140 140" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">
+                <defs>
+                  <radialGradient id="lensG" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#6096f5" stop-opacity="0.5"/><stop offset="100%" stop-color="#1a3a8a" stop-opacity="0"/></radialGradient>
+                  <radialGradient id="innerG" cx="35%" cy="35%" r="65%"><stop offset="0%" stop-color="#8ab4ff" stop-opacity="0.8"/><stop offset="100%" stop-color="#4f82e8" stop-opacity="0.3"/></radialGradient>
+                  <filter id="glow2"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+                </defs>
+                <rect x="18" y="36" width="104" height="74" rx="10" fill="rgba(10,16,34,0.95)" stroke="rgba(96,150,245,0.3)" stroke-width="1.2"/>
+                <rect x="30" y="26" width="34" height="14" rx="5" fill="rgba(10,16,34,0.98)" stroke="rgba(96,150,245,0.22)" stroke-width="1"/>
+                <rect x="80" y="28" width="20" height="10" rx="3" fill="rgba(96,150,245,0.06)" stroke="rgba(96,150,245,0.18)" stroke-width="0.8"/>
+                <circle class="shutter-btn" cx="112" cy="44" r="5" fill="rgba(96,150,245,0.2)" stroke="rgba(96,150,245,0.4)" stroke-width="0.8"/>
+                <circle cx="70" cy="76" r="30" fill="url(#lensG)" stroke="rgba(96,150,245,0.32)" stroke-width="1.2"/>
+                <circle cx="70" cy="76" r="22" fill="rgba(96,150,245,0.05)" stroke="rgba(96,150,245,0.38)" stroke-width="0.7"/>
+                <circle cx="70" cy="76" r="27" fill="none" stroke="rgba(96,150,245,0.1)" stroke-width="0.5" stroke-dasharray="2 6"/>
+                <g id="aperture">
+                  <ellipse rx="16" ry="5" fill="rgba(96,150,245,0.22)" stroke="rgba(96,150,245,0.5)" stroke-width="0.6" transform="rotate(0)"/>
+                  <ellipse rx="16" ry="5" fill="rgba(96,150,245,0.18)" stroke="rgba(96,150,245,0.42)" stroke-width="0.6" transform="rotate(30)"/>
+                  <ellipse rx="16" ry="5" fill="rgba(96,150,245,0.22)" stroke="rgba(96,150,245,0.5)" stroke-width="0.6" transform="rotate(60)"/>
+                  <ellipse rx="16" ry="5" fill="rgba(96,150,245,0.18)" stroke="rgba(96,150,245,0.42)" stroke-width="0.6" transform="rotate(90)"/>
+                  <ellipse rx="16" ry="5" fill="rgba(96,150,245,0.22)" stroke="rgba(96,150,245,0.5)" stroke-width="0.6" transform="rotate(120)"/>
+                  <ellipse rx="16" ry="5" fill="rgba(96,150,245,0.18)" stroke="rgba(96,150,245,0.42)" stroke-width="0.6" transform="rotate(150)"/>
+                </g>
+                <circle cx="70" cy="76" r="10" fill="url(#innerG)" filter="url(#glow2)"/>
+                <circle cx="70" cy="76" r="4" fill="#6096f5" opacity="0.95"/>
+                <ellipse cx="64" cy="70" rx="4" ry="2.5" fill="rgba(255,255,255,0.18)" transform="rotate(-30 64 70)"/>
+              </svg>
+              <div class="cam-blink"></div>
+              <div class="cam-ready-dot"></div>
+            </div>
+          </div>
+          <div class="uz-title">Every great photo deserves great metadata</div>
+          <div class="uz-sub">Upload your Orange Logic CSV export to begin · Results appear instantly</div>
+          <div class="uz-steps">
+            <div class="uz-step"><div class="uz-num">1</div>Export CSV</div>
+            <div class="uz-step"><div class="uz-num">2</div>Upload here</div>
+            <div class="uz-step"><div class="uz-num">3</div>Review suggestions</div>
+            <div class="uz-step"><div class="uz-num">4</div>Download re-import</div>
+            <div class="uz-step"><div class="uz-num">5</div>Back to Orange Logic</div>
+          </div>
+        </div>
+
+        <!-- WORKFLOW STEPS -->
+        <div class="workflow" id="workflowPanel">
+          <div class="workflow-title">Your workflow</div>
+          <div class="workflow-steps">
+            <div class="wf-step">
+              <div class="wf-circle"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div>
+              <div class="wf-num">1. Export</div>
+              <div class="wf-label">Export</div>
+              <div class="wf-desc">From Orange Logic</div>
+            </div>
+            <div class="wf-step">
+              <div class="wf-circle"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
+              <div class="wf-num">2. Upload</div>
+              <div class="wf-label">Upload</div>
+              <div class="wf-desc">Your CSV file</div>
+            </div>
+            <div class="wf-step active">
+              <div class="wf-circle"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg></div>
+              <div class="wf-num">3. Analysis</div>
+              <div class="wf-label">AI Analysis</div>
+              <div class="wf-desc">Generates insights</div>
+            </div>
+            <div class="wf-step">
+              <div class="wf-circle"><svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div>
+              <div class="wf-num">4. Review</div>
+              <div class="wf-label">Review</div>
+              <div class="wf-desc">Confirm fixes</div>
+            </div>
+            <div class="wf-step">
+              <div class="wf-circle"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div>
+              <div class="wf-num">5. Export CSV</div>
+              <div class="wf-label">Export CSV</div>
+              <div class="wf-desc">Clean re-import file</div>
+            </div>
+            <div class="wf-step">
+              <div class="wf-circle"><svg viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="9" y1="7" x2="15" y2="7"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="17" x2="13" y2="17"/></svg></div>
+              <div class="wf-num">6. Import</div>
+              <div class="wf-label">Import</div>
+              <div class="wf-desc">Back to Orange Logic</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- STATS SECTION -->
+        <div id="ov" style="display:none">
+          <div class="shd">Library health — <span id="exportLabel" style="color:#6096f5;text-transform:none;letter-spacing:0;font-weight:400;font-size:10px"></span></div>
+          <div class="kpi-strip" id="kpi1" style="grid-template-columns:repeat(5,1fr);margin-bottom:16px"></div>
+
+          <div class="grid-21">
+            <div>
+              <div class="shd">Top folders with most issues</div>
+              <div class="panel">
+                <div class="f-list" id="fList"></div>
+              </div>
+            </div>
+            <div>
+              <div class="shd">AI insights</div>
+              <div class="insight-list" id="insightList"></div>
+            </div>
+          </div>
+
+          <div class="shd">Missing fields breakdown</div>
+          <div class="grid-2">
+            <div class="panel">
+              <div class="panel-hd"><div class="panel-title">Completeness</div></div>
+              <div class="donut-wrap">
+                <div style="position:relative;width:110px;height:110px">
+                  <canvas id="donutChart" width="110" height="110" role="img" aria-label="Completeness donut chart"></canvas>
+                  <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+                    <span style="font-size:18px;font-weight:800;color:#fff" id="donutPct">0%</span>
+                    <span style="font-size:8px;color:rgba(255,255,255,0.3)">complete</span>
+                  </div>
+                </div>
+                <div class="dl" id="donutLeg"></div>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="panel-hd"><div class="panel-title">Missing fields</div></div>
+              <div style="position:relative;height:130px">
+                <canvas id="barChart" role="img" aria-label="Missing fields bar chart"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BATCH PAGE -->
+      <div id="page-batch" class="page">
+        <div class="kpi-strip" id="bKpi" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px"></div>
+        <div class="panel">
+          <div class="shd">Batch edit candidates — copy suggested text directly into Orange Logic</div>
+          <div class="tbl-wrap" id="bTbl"><div class="empty">Upload your CSV first</div></div>
+        </div>
+      </div>
+
+      <!-- MANUAL PAGE -->
+      <div id="page-manual" class="page">
+        <div class="panel">
+          <div class="shd">Photos requiring individual attention</div>
+          <div class="tbl-wrap" id="mTbl"><div class="empty">Upload your CSV first</div></div>
+        </div>
+      </div>
+
+      <!-- PROGRESS PAGE -->
+      <div id="page-progress" class="page">
+        <div id="progContent"><div class="empty">Upload your CSV first</div></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+let rows=[],reimport=[],donutInst=null,barInst=null;
+
+function nav(id,el){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  el.classList.add('active');
+}
+
+function isEmpty(v){return!v||['','nan','none'].includes(String(v).trim().toLowerCase())}
+const SYS=['admin','administrator','system','nan','none','','imf','unknown'];
+function realName(v){return!isEmpty(v)&&!SYS.includes(String(v).trim().toLowerCase())}
+function fmtDate(d){try{const dt=new Date(d);if(!isNaN(dt))return dt.toLocaleDateString('en-US',{month:'long',year:'numeric'});}catch(e){}return String(d);}
+function makeCap(folder,date){
+  const f=String(folder||'').trim(),dt=fmtDate(date);
+  const p=f.split('/').map(x=>x.trim()).filter(Boolean);
+  return p[1]?`${p[0]}, ${dt}. ${p[1]} session at the International Monetary Fund.`:`${p[0]||f}, ${dt}. International Monetary Fund.`;
+}
+function makeCr(row){
+  const c=String(row['Created By']||'').trim(),m=String(row['Last Modified By']||'').trim();
+  if(realName(c))return{t:c,s:'creator'};
+  if(realName(m))return{t:m,s:'creator'};
+  return{t:'IMF Photo',s:'default'};
+}
+function getMissing(row){
+  const m=[];
+  if(isEmpty(row.Headline))m.push('Headline');
+  if(isEmpty(row['Caption Description']))m.push('Caption');
+  if(isEmpty(row.Credit))m.push('Credit');
+  const v=String(row['Visibility Class']||'').trim();
+  if(isEmpty(v)||v==='Awaiting Mandatory Metadata')m.push('Visibility');
+  return m;
+}
+
+function showShutter(msg,sub,duration,cb){
+  const sc=document.getElementById('shutterContainer');
+  document.getElementById('shutterMsg').textContent=msg;
+  document.getElementById('shutterSub').textContent=sub;
+  sc.classList.add('running');
+  setTimeout(()=>{sc.classList.remove('running');if(cb)cb();},duration);
+}
+
+function loadCSV(e){
+  const file=e.target.files[0];if(!file)return;
+  showShutter(
+    'Aperture open — analysing your library...',
+    'Checking fields · Grouping folders · Generating captions',
+    1800,
+    ()=>{
+      const reader=new FileReader();
+      reader.onload=ev=>{
+        try{
+          const wb=XLSX.read(ev.target.result,{type:'binary'});
+          const data=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:''});
+          rows=data.map(row=>{
+            const r={};
+            Object.keys(row).forEach(k=>{
+              const c=k.trim();
+              if(c.startsWith('Caption Description'))r['Caption Description']=row[k];
+              else if(c.startsWith('Folder path'))r['Folder Path']=row[k];
+              else if(c.startsWith('Link to view'))r['Asset URL']=row[k];
+              else if(c.startsWith('Production Date'))r['Production Date']=row[k];
+              else r[c]=row[k];
+            });
+            if(!r['File Name']&&r['Original File Name'])r['File Name']=r['Original File Name'];
+            return r;
+          });
+          rows=rows.map(r=>{
+            r._m=getMissing(r);r._bad=r._m.length>0;
+            r._hl=r._cap=r._cr=r._vis='';r._crSrc='';
+            if(r._m.includes('Headline'))r._hl=String(r['Folder Path']||'').trim()||'Fill manually';
+            if(r._m.includes('Caption'))r._cap=makeCap(r['Folder Path'],r['Production Date']);
+            if(r._m.includes('Credit')){const cr=makeCr(r);r._cr=cr.t;r._crSrc=cr.s;}
+            if(r._m.includes('Visibility'))r._vis='Internal Use Only';
+            return r;
+          });
+          reimport=rows.filter(r=>r._bad).map(r=>({'File Name':r['File Name']||'','Folder Path':r['Folder Path']||'','Headline':r._hl||r.Headline||'','Caption Description':r._cap||r['Caption Description']||'','Credit':r._cr||r.Credit||'','Visibility Class':r._vis||r['Visibility Class']||'','Production Date':r['Production Date']||'','Asset URL':r['Asset URL']||''}));
+          const now=new Date();
+          const bad=rows.filter(r=>r._bad).length;
+          document.getElementById('ts').textContent='Updated '+now.toLocaleTimeString();
+          document.getElementById('ts').style.display='block';
+          document.getElementById('dlBtn').style.display='block';
+          document.getElementById('resetBtn').style.display='block';
+          document.getElementById('uz').style.display='none';
+          document.getElementById('ov').style.display='block';
+          document.getElementById('exportLabel').textContent='as of '+now.toLocaleDateString();
+          document.getElementById('badge-overview').classList.add('show');
+          document.getElementById('badge-batch').textContent=bGroups().filter(g=>g.n>1).length;
+          document.getElementById('badge-batch').classList.add('show');
+          document.getElementById('badge-manual').textContent=bad;
+          document.getElementById('badge-manual').classList.add('show');
+          renderAll();
+        }catch(err){alert('Error: '+err.message);location.reload();}
+      };
+      reader.readAsBinaryString(file);
+    }
+  );
+}
+
+function doReset(){
+  rows=[];reimport=[];
+  if(donutInst){donutInst.destroy();donutInst=null;}
+  if(barInst){barInst.destroy();barInst=null;}
+  document.getElementById('uz').style.display='block';
+  document.getElementById('ov').style.display='none';
+  document.getElementById('ts').style.display='none';
+  document.getElementById('dlBtn').style.display='none';
+  document.getElementById('resetBtn').style.display='none';
+  document.getElementById('fi').value='';
+  document.querySelectorAll('.nav-badge').forEach(b=>b.classList.remove('show'));
+  nav('overview',document.querySelector('.nav-item'));
+}
+
+function doDownload(){
+  if(!reimport.length){alert('Upload CSV first');return;}
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(reimport),'Re-Import');
+  XLSX.writeFile(wb,'reimport_ready.csv');
+}
+
+function renderAll(){renderOverview();renderBatch();renderManual();renderProgress();}
+
+function renderOverview(){
+  const total=rows.length,bad=rows.filter(r=>r._bad).length,good=total-bad;
+  const pct=total>0?Math.round(good/total*100):0;
+  const mH=rows.filter(r=>r._m.includes('Headline')).length;
+  const mC=rows.filter(r=>r._m.includes('Caption')).length;
+  const mCr=rows.filter(r=>r._m.includes('Credit')).length;
+  const mV=rows.filter(r=>r._m.includes('Visibility')).length;
+  const bg=bGroups();
+  const bCnt=bg.filter(g=>g.n>1).length;
+  const bPh=bg.filter(g=>g.n>1).reduce((s,g)=>s+g.n,0);
+
+  const kpiDefs=[
+    {l:'Assets analysed',v:total.toLocaleString(),sub:'In this export',c:'#6096f5',bc:'rgba(96,150,245,0.25)',icon:'<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>'},
+    {l:'Missing metadata',v:bad.toLocaleString(),sub:`${100-pct}% of library`,c:'#e87880',bc:'rgba(224,92,106,0.25)',icon:'<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>'},
+    {l:'AI suggestions',v:reimport.length,sub:'Ready to apply',c:'#a78bfa',bc:'rgba(167,139,250,0.25)',icon:'<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>'},
+    {l:'Ready for import',v:bPh,sub:'Photos batchable',c:'#22c97a',bc:'rgba(34,201,122,0.25)',icon:'<polyline points="20 6 9 17 4 12"/>'},
+    {l:'Metadata completeness',v:pct+'%',sub:`${good} of ${total} complete`,c:'#6096f5',bc:'rgba(96,150,245,0.25)',icon:'<path d="M21 12a9 9 0 0 1-9 9m9-9a9 9 0 0 0-9-9m9 9H3m9 9a9 9 0 0 1-9-9m9 9c1.66 0 3-4.03 3-9s-1.34-9-3-9m0 18c-1.66 0-3-4.03-3-9s1.34-9 3-9"/>'},
+  ];
+  document.getElementById('kpi1').innerHTML=kpiDefs.map(k=>`
+    <div class="kpi-card" style="border-bottom:2px solid ${k.c}">
+      <div class="kpi-lbl">
+        <div class="kpi-icon" style="background:${k.bc};color:${k.c}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${k.icon}</svg></div>
+        ${k.l}
+      </div>
+      <div class="kpi-val" style="color:${k.c}">${k.v}</div>
+      <div class="kpi-sub">${k.sub}</div>
+    </div>`).join('');
+
+  // Folder list
+  const fc={},fm={};
+  rows.filter(r=>r._bad).forEach(r=>{
+    const f=r['Folder Path']||'Unknown';
+    if(!fc[f]){fc[f]=0;fm[f]=new Set();}
+    fc[f]++;r._m.forEach(m=>fm[f].add(m));
+  });
+  const sorted=Object.entries(fc).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const maxN=sorted[0]?.[1]||1;
+  document.getElementById('fList').innerHTML=sorted.length?sorted.map(([f,n])=>{
+    const w=Math.round(n/maxN*100);
+    const tags=[...fm[f]].map(m=>`<span class="badge b-r">${m}</span>`).join('');
+    const short=f.length>38?f.slice(0,38)+'…':f;
+    return`<div class="f-row"><div class="f-top"><div class="f-name">${short}</div><div class="f-count">${n}</div></div><div class="f-track"><div class="f-fill" style="width:${w}%"></div></div><div class="f-tags">${tags}</div></div>`;
+  }).join(''):'<div class="empty" style="padding:10px;font-size:11px">Library is clean</div>';
+
+  // AI insights
+  const insights=[];
+  if(mC>0)insights.push({icon:'<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',c:'rgba(167,139,250,0.2)',tc:'#a78bfa',t:'Missing captions detected',s:`${mC} photos need caption descriptions`});
+  if(mCr>0)insights.push({icon:'<circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/>',c:'rgba(96,150,245,0.2)',tc:'#7aa3f0',t:'Credit attribution missing',s:`${mCr} photos missing photographer credit`});
+  if(mH>0)insights.push({icon:'<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>',c:'rgba(201,168,58,0.2)',tc:'#c9a83a',t:'Headlines need attention',s:`${mH} photos missing headline metadata`});
+  if(!insights.length)insights.push({icon:'<polyline points="20 6 9 17 4 12"/>',c:'rgba(34,201,122,0.2)',tc:'#22c97a',t:'Library looks great!',s:'All fields are complete for this export'});
+  document.getElementById('insightList').innerHTML=insights.map(i=>`
+    <div class="insight-item">
+      <div class="insight-icon" style="background:${i.c};color:${i.tc}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${i.icon}</svg></div>
+      <div><div class="insight-title">${i.t}</div><div class="insight-sub">${i.s}</div></div>
+      <div class="insight-arr">›</div>
+    </div>`).join('');
+
+  // Donut
+  if(donutInst)donutInst.destroy();
+  donutInst=new Chart(document.getElementById('donutChart').getContext('2d'),{
+    type:'doughnut',
+    data:{labels:['Complete','Incomplete'],datasets:[{data:[good||0.01,bad],backgroundColor:['#6096f5','rgba(255,255,255,0.06)'],borderWidth:0,hoverBackgroundColor:['#7aa3f0','rgba(255,255,255,0.1)']}]},
+    options:{responsive:false,cutout:'68%',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${ctx.raw===0.01?0:ctx.raw}`}}}}
+  });
+  document.getElementById('donutPct').textContent=pct+'%';
+  document.getElementById('donutLeg').innerHTML=`
+    <div class="dl-item"><div class="dl-dot" style="background:#6096f5"></div>${pct}% complete (${good})</div>
+    <div class="dl-item"><div class="dl-dot" style="background:rgba(255,255,255,0.12)"></div>${100-pct}% incomplete (${bad})</div>`;
+
+  // Bar chart
+  if(barInst)barInst.destroy();
+  barInst=new Chart(document.getElementById('barChart').getContext('2d'),{
+    type:'bar',
+    data:{labels:['Headline','Caption','Credit','Visibility'],datasets:[{data:[mH,mC,mCr,mV],backgroundColor:['rgba(224,92,106,0.6)','rgba(201,168,58,0.6)','rgba(224,92,106,0.6)','rgba(201,168,58,0.6)'],borderColor:['#e05c6a','#c9a83a','#e05c6a','#c9a83a'],borderWidth:1,borderRadius:5,hoverBackgroundColor:['rgba(224,92,106,0.9)','rgba(201,168,58,0.9)','rgba(224,92,106,0.9)','rgba(201,168,58,0.9)']}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.raw} photos missing`}}},scales:{x:{grid:{display:false},ticks:{color:'rgba(255,255,255,0.3)',font:{size:10}}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'rgba(255,255,255,0.25)',font:{size:9}},beginAtZero:true}}}
+  });
+}
+
+function bGroups(){
+  const g={};
+  rows.filter(r=>r._bad).forEach(r=>{
+    const k=(r['Folder Path']||'')+'|'+r._m.join(',');
+    if(!g[k])g[k]={folder:r['Folder Path']||'',missing:r._m,rows:[],url:r['Asset URL']||'#'};
+    g[k].rows.push(r);
+  });
+  return Object.values(g).map(x=>({...x,n:x.rows.length}));
+}
+
+function srcTag(s){
+  if(s==='creator')return`<span class="src src-cr">from creator</span>`;
+  if(s==='ai')return`<span class="src src-ai">AI</span>`;
+  if(s==='default')return`<span class="src src-def">default</span>`;
+  return`<span class="src">from folder</span>`;
+}
+
+function renderBatch(){
+  const groups=bGroups().filter(g=>g.n>1);
+  const total=groups.reduce((s,g)=>s+g.n,0);
+  document.getElementById('bKpi').innerHTML=`
+    <div class="kpi-card" style="border-bottom:2px solid #22c97a"><div class="kpi-lbl">Batch groups ready</div><div class="kpi-val" style="color:#22c97a;font-size:20px">${groups.length}</div><div class="kpi-sub">Fix together in one action</div></div>
+    <div class="kpi-card" style="border-bottom:2px solid #6096f5"><div class="kpi-lbl">Photos batchable</div><div class="kpi-val" style="color:#7aa3f0;font-size:20px">${total}</div><div class="kpi-sub">Fixed in bulk</div></div>
+    <div class="kpi-card" style="border-bottom:2px solid #8b5cf6"><div class="kpi-lbl">Est. time to fix all</div><div class="kpi-val" style="font-size:20px">~${groups.length*5}min</div><div class="kpi-sub">vs hours manually</div></div>`;
+  if(!groups.length){document.getElementById('bTbl').innerHTML='<div class="empty">No batch candidates found</div>';return;}
+  let html=`<table><thead><tr><th>Folder path</th><th>Assets</th><th>Missing</th><th>Suggested text — copy into Orange Logic</th><th>Open</th></tr></thead><tbody>`;
+  groups.forEach(g=>{
+    const s=g.rows[0];
+    const badges=g.missing.map(m=>`<span class="badge b-r">${m}</span>`).join(' ');
+    let sug='';
+    if(s._hl)sug+=`<div class="sg"><strong>Headline:</strong> ${s._hl} ${srcTag('folder')}</div>`;
+    if(s._cap)sug+=`<div class="sg"><strong>Caption:</strong> ${s._cap} ${srcTag('ai')}</div>`;
+    if(s._cr)sug+=`<div class="sg"><strong>Credit:</strong> ${s._cr} ${srcTag(s._crSrc)}</div>`;
+    if(s._vis)sug+=`<div class="sg"><strong>Visibility:</strong> ${s._vis} ${srcTag('default')}</div>`;
+    html+=`<tr><td style="font-weight:600;color:#e2e8f0;min-width:130px">${g.folder}</td><td><span class="badge b-y">${g.n}</span></td><td>${badges}</td><td>${sug}</td><td><a class="lnk" href="${g.url}" target="_blank">Open ↗</a></td></tr>`;
+  });
+  document.getElementById('bTbl').innerHTML=html+'</tbody></table>';
+}
+
+function renderManual(){
+  const bfm=new Set(bGroups().filter(g=>g.n>1).map(g=>(g.folder||'')+'|'+g.missing.join(',')));
+  const manual=rows.filter(r=>r._bad&&!bfm.has((r['Folder Path']||'')+'|'+r._m.join(',')));
+  if(!manual.length){document.getElementById('mTbl').innerHTML='<div class="empty">No individual review needed — great work!</div>';return;}
+  let html=`<table><thead><tr><th>File name</th><th>Folder</th><th>Missing</th><th>Suggested text</th><th>Open</th></tr></thead><tbody>`;
+  manual.forEach(r=>{
+    const badges=r._m.map(m=>`<span class="badge b-r">${m}</span>`).join(' ');
+    let sug='';
+    if(r._hl)sug+=`<div class="sg"><strong>Headline:</strong> ${r._hl} ${srcTag('folder')}</div>`;
+    if(r._cap)sug+=`<div class="sg"><strong>Caption:</strong> ${r._cap} ${srcTag('ai')}</div>`;
+    if(r._cr)sug+=`<div class="sg"><strong>Credit:</strong> ${r._cr} ${srcTag(r._crSrc)}</div>`;
+    if(r._vis)sug+=`<div class="sg"><strong>Visibility:</strong> ${r._vis} ${srcTag('default')}</div>`;
+    html+=`<tr><td style="font-family:monospace;font-size:9px;color:rgba(255,255,255,0.35)">${r['File Name']||''}</td><td style="color:rgba(255,255,255,0.5)">${r['Folder Path']||''}</td><td>${badges}</td><td>${sug}</td><td><a class="lnk" href="${r['Asset URL']||'#'}" target="_blank">Open ↗</a></td></tr>`;
+  });
+  document.getElementById('mTbl').innerHTML=html+'</tbody></table>';
+}
+
+function renderProgress(){
+  const total=rows.length,bad=rows.filter(r=>r._bad).length,good=total-bad;
+  const groups=bGroups().filter(g=>g.n>1);
+  const bfm=new Set(groups.map(g=>(g.folder||'')+'|'+g.missing.join(',')));
+  const manual=rows.filter(r=>r._bad&&!bfm.has((r['Folder Path']||'')+'|'+r._m.join(','))).length;
+  const mH=rows.filter(r=>r._m.includes('Headline')).length;
+  const mC=rows.filter(r=>r._m.includes('Caption')).length;
+  const mCr=rows.filter(r=>r._m.includes('Credit')).length;
+  const mV=rows.filter(r=>r._m.includes('Visibility')).length;
+  function pct(m){return total>0?Math.round((total-m)/total*100):0;}
+  function col(p){return p>=80?'#22c97a':p>=50?'#c9a83a':'#e05c6a';}
+  const fields=[{l:'Headline',m:mH},{l:'Caption description',m:mC},{l:'Credit',m:mCr},{l:'Visibility class',m:mV}];
+  document.getElementById('progContent').innerHTML=`
+    <div class="kpi-strip" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px">
+      <div class="kpi-card" style="border-bottom:2px solid #22c97a"><div class="kpi-lbl">Overall complete</div><div class="kpi-val" style="color:#22c97a;font-size:20px">${total>0?Math.round(good/total*100):0}%</div></div>
+      <div class="kpi-card" style="border-bottom:2px solid #e05c6a"><div class="kpi-lbl">Still outstanding</div><div class="kpi-val" style="color:#e87880;font-size:20px">${bad}</div></div>
+      <div class="kpi-card" style="border-bottom:2px solid #6096f5"><div class="kpi-lbl">Batch groups</div><div class="kpi-val" style="color:#7aa3f0;font-size:20px">${groups.length}</div></div>
+      <div class="kpi-card" style="border-bottom:2px solid #c9a83a"><div class="kpi-lbl">Manual review</div><div class="kpi-val" style="color:#c9a83a;font-size:20px">${manual}</div></div>
+    </div>
+    <div class="panel" style="margin-bottom:12px">
+      <div class="shd">Completion by field</div>
+      ${fields.map(f=>{const p=pct(f.m);return`<div class="prog-item"><div class="prog-hd"><span>${f.l}</span><span style="color:${col(p)};font-weight:600">${p}% complete <span style="color:rgba(255,255,255,0.18);font-weight:400">· ${f.m} missing</span></span></div><div class="prog-track"><div class="prog-fill" style="width:${p}%;background:${col(p)}"></div></div></div>`;}).join('')}
+    </div>
+    <div class="panel">
+      <div class="shd">What to do next</div>
+      <div class="pri"><div class="pri-n">1</div><div><strong style="color:#e2e8f0">Batch edit tab</strong> — fix ${groups.length} folder groups using the suggested text. Copy and paste directly into Orange Logic.</div></div>
+      <div class="pri"><div class="pri-n">2</div><div><strong style="color:#e2e8f0">Manual review tab</strong> — fix ${manual} photo${manual!==1?'s':''} requiring individual attention.</div></div>
+      <div class="pri"><div class="pri-n">3</div><div><strong style="color:#e2e8f0">Download re-import CSV</strong> — green button at top right. Upload back to Orange Logic to apply all fixes at once.</div></div>
+    </div>`;
+}
+</script>
+</body>
+</html>
