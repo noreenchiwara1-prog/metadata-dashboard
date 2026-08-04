@@ -4,15 +4,137 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Metadata Quality Dashboard — IMF Creative Solutions</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js">
+function renderHealth(){
+  const total=rows.length,bad=rows.filter(r=>r._bad).length,good=total-bad;
+  const pct=total>0?Math.round(good/total*100):0;
+  const mH=rows.filter(r=>r._m.includes('Headline')).length;
+  const mC=rows.filter(r=>r._m.includes('Caption')).length;
+  const mCr=rows.filter(r=>r._m.includes('Credit')).length;
+  const mV=rows.filter(r=>r._m.includes('Visibility')).length;
+  const bg=bGroups();
+  const bCnt=bg.filter(g=>g.n>1).length;
+
+  document.getElementById('healthKpi').innerHTML=`
+    <div class="kpi-card" style="border-bottom:2px solid #6096f5"><div class="kpi-lbl">Photos in this export</div><div class="kpi-val">${total.toLocaleString()}</div><div class="kpi-sub">Incomplete photos only</div></div>
+    <div class="kpi-card" style="border-bottom:2px solid #22c97a"><div class="kpi-lbl">Complete in export</div><div class="kpi-val" style="color:#22c97a">${good.toLocaleString()}</div><div class="kpi-sub">${pct}% of this export</div></div>
+    <div class="kpi-card" style="border-bottom:2px solid #e05c6a"><div class="kpi-lbl">Still incomplete</div><div class="kpi-val" style="color:#e87880">${bad.toLocaleString()}</div><div class="kpi-sub">${100-pct}% needs attention</div></div>`;
+
+  // Health donut
+  const hCtx=document.getElementById('healthDonut');
+  if(hCtx){
+    if(window.healthDonutInst)window.healthDonutInst.destroy();
+    window.healthDonutInst=new Chart(hCtx.getContext('2d'),{
+      type:'doughnut',
+      data:{labels:['Complete','Incomplete'],datasets:[{data:[good||0.01,bad],backgroundColor:['#22c97a','rgba(255,255,255,0.07)'],borderWidth:0}]},
+      options:{responsive:false,cutout:'68%',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${ctx.raw===0.01?0:ctx.raw}`}}}}
+    });
+    document.getElementById('healthPct').textContent=pct+'%';
+    document.getElementById('healthLeg').innerHTML=`
+      <div class="dl-item"><div class="dl-dot" style="background:#22c97a"></div>${pct}% complete (${good})</div>
+      <div class="dl-item"><div class="dl-dot" style="background:rgba(255,255,255,0.05)"></div>${100-pct}% incomplete (${bad})</div>`;
+  }
+
+  // Health bar
+  const hbCtx=document.getElementById('healthBar');
+  if(hbCtx){
+    if(window.healthBarInst)window.healthBarInst.destroy();
+    window.healthBarInst=new Chart(hbCtx.getContext('2d'),{
+      type:'bar',
+      data:{labels:['Headline','Caption','Credit','Visibility'],datasets:[{data:[mH,mC,mCr,mV],backgroundColor:['rgba(224,92,106,0.6)','rgba(201,168,58,0.6)','rgba(224,92,106,0.6)','rgba(201,168,58,0.6)'],borderColor:['#e05c6a','#c9a83a','#e05c6a','#c9a83a'],borderWidth:1,borderRadius:4}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.raw} photos missing`}}},scales:{x:{grid:{display:false},ticks:{color:'rgba(255,255,255,0.35)',font:{size:10}}},y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'rgba(255,255,255,0.3)',font:{size:9}},beginAtZero:true}}}
+    });
+  }
+
+  // Health folders
+  const fc={},fm={};
+  rows.filter(r=>r._bad).forEach(r=>{
+    const f=r['Folder Path']||'Unknown';
+    if(!fc[f]){fc[f]=0;fm[f]=new Set();}
+    fc[f]++;r._m.forEach(m=>fm[f].add(m));
+  });
+  const sorted=Object.entries(fc).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const maxN=sorted[0]?.[1]||1;
+  const hf=document.getElementById('healthFolders');
+  if(hf){
+    hf.innerHTML=sorted.length?sorted.map(([f,n])=>{
+      const w=Math.round(n/maxN*100);
+      const tags=[...fm[f]].map(m=>`<span class="badge b-r">${m}</span>`).join('');
+      const short=f.length>44?f.slice(0,44)+'…':f;
+      return`<div class="f-row"><div class="f-name">${short}</div><div class="f-bar-row"><div class="f-track"><div class="f-fill" style="width:${w}%;background:linear-gradient(90deg,#6096f5,#4f82e8)">${n}</div></div><div class="f-cnt">${n} photo${n!==1?'s':''}</div></div><div class="f-tags">${tags}</div></div>`;
+    }).join(''):'<div class="empty" style="padding:10px;font-size:11px">No issues found</div>';
+  }
+}
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js">
+function renderHealth(){
+  const total=rows.length,bad=rows.filter(r=>r._bad).length,good=total-bad;
+  const pct=total>0?Math.round(good/total*100):0;
+  const mH=rows.filter(r=>r._m.includes('Headline')).length;
+  const mC=rows.filter(r=>r._m.includes('Caption')).length;
+  const mCr=rows.filter(r=>r._m.includes('Credit')).length;
+  const mV=rows.filter(r=>r._m.includes('Visibility')).length;
+  const bg=bGroups();
+  const bCnt=bg.filter(g=>g.n>1).length;
+
+  document.getElementById('healthKpi').innerHTML=`
+    <div class="kpi-card" style="border-bottom:2px solid #6096f5"><div class="kpi-lbl">Photos in this export</div><div class="kpi-val">${total.toLocaleString()}</div><div class="kpi-sub">Incomplete photos only</div></div>
+    <div class="kpi-card" style="border-bottom:2px solid #22c97a"><div class="kpi-lbl">Complete in export</div><div class="kpi-val" style="color:#22c97a">${good.toLocaleString()}</div><div class="kpi-sub">${pct}% of this export</div></div>
+    <div class="kpi-card" style="border-bottom:2px solid #e05c6a"><div class="kpi-lbl">Still incomplete</div><div class="kpi-val" style="color:#e87880">${bad.toLocaleString()}</div><div class="kpi-sub">${100-pct}% needs attention</div></div>`;
+
+  // Health donut
+  const hCtx=document.getElementById('healthDonut');
+  if(hCtx){
+    if(window.healthDonutInst)window.healthDonutInst.destroy();
+    window.healthDonutInst=new Chart(hCtx.getContext('2d'),{
+      type:'doughnut',
+      data:{labels:['Complete','Incomplete'],datasets:[{data:[good||0.01,bad],backgroundColor:['#22c97a','rgba(255,255,255,0.07)'],borderWidth:0}]},
+      options:{responsive:false,cutout:'68%',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${ctx.raw===0.01?0:ctx.raw}`}}}}
+    });
+    document.getElementById('healthPct').textContent=pct+'%';
+    document.getElementById('healthLeg').innerHTML=`
+      <div class="dl-item"><div class="dl-dot" style="background:#22c97a"></div>${pct}% complete (${good})</div>
+      <div class="dl-item"><div class="dl-dot" style="background:rgba(255,255,255,0.05)"></div>${100-pct}% incomplete (${bad})</div>`;
+  }
+
+  // Health bar
+  const hbCtx=document.getElementById('healthBar');
+  if(hbCtx){
+    if(window.healthBarInst)window.healthBarInst.destroy();
+    window.healthBarInst=new Chart(hbCtx.getContext('2d'),{
+      type:'bar',
+      data:{labels:['Headline','Caption','Credit','Visibility'],datasets:[{data:[mH,mC,mCr,mV],backgroundColor:['rgba(224,92,106,0.6)','rgba(201,168,58,0.6)','rgba(224,92,106,0.6)','rgba(201,168,58,0.6)'],borderColor:['#e05c6a','#c9a83a','#e05c6a','#c9a83a'],borderWidth:1,borderRadius:4}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.raw} photos missing`}}},scales:{x:{grid:{display:false},ticks:{color:'rgba(255,255,255,0.35)',font:{size:10}}},y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'rgba(255,255,255,0.3)',font:{size:9}},beginAtZero:true}}}
+    });
+  }
+
+  // Health folders
+  const fc={},fm={};
+  rows.filter(r=>r._bad).forEach(r=>{
+    const f=r['Folder Path']||'Unknown';
+    if(!fc[f]){fc[f]=0;fm[f]=new Set();}
+    fc[f]++;r._m.forEach(m=>fm[f].add(m));
+  });
+  const sorted=Object.entries(fc).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const maxN=sorted[0]?.[1]||1;
+  const hf=document.getElementById('healthFolders');
+  if(hf){
+    hf.innerHTML=sorted.length?sorted.map(([f,n])=>{
+      const w=Math.round(n/maxN*100);
+      const tags=[...fm[f]].map(m=>`<span class="badge b-r">${m}</span>`).join('');
+      const short=f.length>44?f.slice(0,44)+'…':f;
+      return`<div class="f-row"><div class="f-name">${short}</div><div class="f-bar-row"><div class="f-track"><div class="f-fill" style="width:${w}%;background:linear-gradient(90deg,#6096f5,#4f82e8)">${n}</div></div><div class="f-cnt">${n} photo${n!==1?'s':''}</div></div><div class="f-tags">${tags}</div></div>`;
+    }).join(''):'<div class="empty" style="padding:10px;font-size:11px">No issues found</div>';
+  }
+}
+</script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Inter',sans-serif;background:#0f1623;min-height:100vh;color:#e2e8f0;font-size:13px;overflow-x:hidden}
+body{font-family:'Inter',sans-serif;background:#0f1623;min-height:100vh;color:#fff;font-size:13px;overflow-x:hidden}
 
 /* ── SHUTTER OVERLAY ── */
-.shutter-overlay{position:fixed;inset:0;z-index:9999;pointer-events:none;display:flex;align-items:center;justify-content:center;background:#000;opacity:0;transition:opacity 0.1s}
+.shutter-overlay{position:fixed;inset:0;z-index:9999;pointer-events:none;display:flex;align-items:center;justify-content:center;background:#080e1a;opacity:0;transition:opacity 0.1s}
 .shutter-overlay.active{pointer-events:all}
 .shutter-blades{position:relative;width:200px;height:200px}
 .blade{position:absolute;top:50%;left:50%;width:100px;height:100px;background:#111;transform-origin:0 0}
@@ -31,33 +153,33 @@ body{font-family:'Inter',sans-serif;background:#0f1623;min-height:100vh;color:#e
 .logo-aperture{width:38px;height:38px;margin-bottom:10px;position:relative}
 .logo-aperture svg{width:38px;height:38px;animation:rotateSlow 12s linear infinite}
 @keyframes rotateSlow{to{transform:rotate(360deg)}}
-.logo-imf{font-size:9px;font-weight:700;color:rgba(255,255,255,0.28);letter-spacing:0.18em;text-transform:uppercase;margin-bottom:3px}
+.logo-imf{font-size:9px;font-weight:700;color:rgba(255,255,255,0.55);letter-spacing:0.18em;text-transform:uppercase;margin-bottom:3px}
 .logo-name{font-size:18px;font-weight:800;color:#fff;line-height:1.15;letter-spacing:-0.4px}
 .logo-name span{color:#6096f5}
 .logo-tag{display:inline-flex;align-items:center;gap:5px;background:rgba(96,150,245,0.1);border:1px solid rgba(96,150,245,0.18);border-radius:5px;padding:3px 9px;font-size:9px;font-weight:700;color:#6096f5;letter-spacing:0.06em;margin-top:8px}
 .logo-tag svg{width:10px;height:10px}
 
 .nav{padding:14px 10px;flex:1;display:flex;flex-direction:column;gap:2px}
-.nav-section{font-size:9px;font-weight:700;color:rgba(255,255,255,0.2);letter-spacing:0.1em;text-transform:uppercase;padding:8px 12px 4px;margin-top:4px}
-.nav-item{display:flex;align-items:center;gap:10px;padding:9px 12px;font-size:12px;color:rgba(255,255,255,0.38);cursor:pointer;border-radius:8px;transition:all 0.2s;position:relative;overflow:hidden}
+.nav-section{font-size:9px;font-weight:700;color:rgba(255,255,255,0.5);letter-spacing:0.1em;text-transform:uppercase;padding:8px 12px 4px;margin-top:4px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 12px;font-size:12px;color:rgba(255,255,255,0.5);cursor:pointer;border-radius:8px;transition:all 0.2s;position:relative;overflow:hidden}
 .nav-item::before{content:'';position:absolute;left:0;top:0;height:100%;width:2px;background:#6096f5;transform:scaleY(0);transition:transform 0.2s;border-radius:0 2px 2px 0}
-.nav-item:hover{background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.75)}
+.nav-item:hover{background:#0f1623;color:rgba(255,255,255,0.8)}
 .nav-item.active{background:rgba(96,150,245,0.1);color:#fff;font-weight:600}
 .nav-item.active::before{transform:scaleY(1)}
 .nav-icon{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.2s}
 .nav-item.active .nav-icon{background:rgba(96,150,245,0.2)}
-.nav-item:hover .nav-icon{background:rgba(255,255,255,0.06)}
+.nav-item:hover .nav-icon{background:linear-gradient(135deg,#141d2e,#18253a)}
 .nav-icon svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .nav-badge{margin-left:auto;background:rgba(96,150,245,0.2);color:#7aa3f0;font-size:9px;font-weight:700;padding:2px 6px;border-radius:10px;display:none}
 .nav-badge.show{display:block}
 
-.sidebar-card{margin:8px 12px;background:linear-gradient(135deg,rgba(96,150,245,0.08),rgba(139,92,246,0.06));border:1px solid rgba(96,150,245,0.12);border-radius:10px;padding:14px;position:relative;overflow:hidden}
+.sidebar-card{margin:8px 12px;background:linear-gradient(135deg,rgba(96,150,245,0.12),rgba(139,92,246,0.1));border:1px solid rgba(96,150,245,0.12);border-radius:10px;padding:14px;position:relative;overflow:hidden}
 .sidebar-card::after{content:'';position:absolute;bottom:-20px;right:-20px;width:70px;height:70px;border-radius:50%;background:radial-gradient(circle,rgba(96,150,245,0.15),transparent);pointer-events:none}
 .sc-illus{margin-bottom:10px}
 .sc-title{font-size:11px;font-weight:700;color:#6096f5;margin-bottom:5px;letter-spacing:0.02em}
 .sc-text{font-size:10px;color:rgba(255,255,255,0.32);line-height:1.55}
 
-.sidebar-foot{padding:12px 18px;border-top:1px solid rgba(255,255,255,0.05);font-size:9px;color:rgba(255,255,255,0.18);line-height:1.6}
+.sidebar-foot{padding:12px 18px;border-top:1px solid rgba(255,255,255,0.1);font-size:9px;color:rgba(255,255,255,0.25);line-height:1.6}
 
 /* ── MAIN ── */
 .main{margin-left:220px;flex:1;display:flex;flex-direction:column}
@@ -65,9 +187,9 @@ body{font-family:'Inter',sans-serif;background:#0f1623;min-height:100vh;color:#e
 /* ── TOPBAR ── */
 .topbar{background:rgba(8,14,26,0.95);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,0.06);padding:12px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:99}
 .tb-title{font-size:15px;font-weight:700;color:#fff;letter-spacing:-0.3px}
-.tb-sub{font-size:10px;color:rgba(255,255,255,0.2);margin-top:1px;letter-spacing:0.07em;text-transform:uppercase}
+.tb-sub{font-size:10px;color:rgba(255,255,255,0.35);margin-top:1px;letter-spacing:0.07em;text-transform:uppercase}
 .tb-right{display:flex;align-items:center;gap:8px}
-.ts{font-size:10px;color:rgba(255,255,255,0.22);background:rgba(255,255,255,0.04);padding:4px 10px;border-radius:5px;border:1px solid rgba(255,255,255,0.06);display:none;white-space:nowrap}
+.ts{font-size:10px;color:rgba(255,255,255,0.5);background:linear-gradient(135deg,#141d2e,#18253a);padding:4px 10px;border-radius:5px;border:1px solid rgba(255,255,255,0.12);display:none;white-space:nowrap}
 
 .btn{padding:8px 16px;border:none;border-radius:8px;cursor:pointer;font-size:11px;font-weight:600;transition:all 0.2s;letter-spacing:0.02em;white-space:nowrap;position:relative;overflow:hidden}
 .btn::after{content:'';position:absolute;top:50%;left:50%;width:0;height:0;background:rgba(255,255,255,0.2);border-radius:50%;transform:translate(-50%,-50%);transition:width 0.4s,height 0.4s,opacity 0.4s;opacity:0}
@@ -77,8 +199,8 @@ body{font-family:'Inter',sans-serif;background:#0f1623;min-height:100vh;color:#e
 .btn-p:active{transform:translateY(0)}
 .btn-s{background:linear-gradient(135deg,#0d7a4a,#0f9a5a);color:#fff;box-shadow:0 2px 8px rgba(14,122,74,0.25);display:none}
 .btn-s:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(14,122,74,0.38)}
-.btn-ghost{background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.45);border:1px solid rgba(255,255,255,0.08);display:none}
-.btn-ghost:hover{background:rgba(255,255,255,0.09);color:rgba(255,255,255,0.7)}
+.btn-ghost{background:#0f1623;color:rgba(255,255,255,0.6);border:1px solid rgba(255,255,255,0.12);display:none}
+.btn-ghost:hover{background:rgba(255,255,255,0.09);color:rgba(255,255,255,0.8)}
 
 /* ── CONTENT ── */
 .content{padding:20px 24px;flex:1}
@@ -89,16 +211,16 @@ body{font-family:'Inter',sans-serif;background:#0f1623;min-height:100vh;color:#e
 .kpi-card{background:linear-gradient(135deg,#141d2e,#18253a);border:1px solid rgba(255,255,255,0.07);border-radius:11px;padding:14px 16px;position:relative;overflow:hidden;transition:transform 0.15s,box-shadow 0.15s;cursor:default}
 .kpi-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,0.3)}
 .kpi-card::before{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;border-radius:0 0 11px 11px}
-.kpi-lbl{font-size:9px;font-weight:600;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:0.09em;margin-bottom:5px;display:flex;align-items:center;gap:6px}
+.kpi-lbl{font-size:9px;font-weight:600;color:rgba(255,255,255,0.55);text-transform:uppercase;letter-spacing:0.09em;margin-bottom:5px;display:flex;align-items:center;gap:6px}
 .kpi-icon{width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .kpi-icon svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .kpi-val{font-size:24px;font-weight:800;color:#fff;letter-spacing:-0.5px;line-height:1}
-.kpi-sub{font-size:9px;color:rgba(255,255,255,0.22);margin-top:4px}
+.kpi-sub{font-size:9px;color:rgba(255,255,255,0.5);margin-top:4px}
 .kpi-trend{position:absolute;bottom:0;left:0;right:0;height:32px;opacity:0.4}
 
 /* ── WORKFLOW ── */
 .workflow{background:linear-gradient(135deg,#141d2e,#18253a);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:18px 20px;margin-bottom:18px}
-.workflow-title{font-size:10px;font-weight:700;color:rgba(255,255,255,0.25);text-transform:uppercase;letter-spacing:0.09em;margin-bottom:16px}
+.workflow-title{font-size:10px;font-weight:700;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:0.09em;margin-bottom:16px}
 .workflow-steps{display:flex;align-items:flex-start;gap:0;position:relative}
 .workflow-steps::before{content:'';position:absolute;top:18px;left:40px;right:40px;height:1px;background:linear-gradient(90deg,rgba(96,150,245,0.3),rgba(96,150,245,0.1));z-index:0}
 .wf-step{flex:1;display:flex;flex-direction:column;align-items:center;text-align:center;position:relative;z-index:1}
@@ -111,18 +233,18 @@ body{font-family:'Inter',sans-serif;background:#0f1623;min-height:100vh;color:#e
 .wf-step:nth-child(5) .wf-circle{background:rgba(34,201,122,0.12);border:1px solid rgba(34,201,122,0.25);color:#22c97a}
 .wf-step:nth-child(6) .wf-circle{background:rgba(34,201,122,0.15);border:1px solid rgba(34,201,122,0.3);color:#22c97a}
 .wf-step.active .wf-circle{box-shadow:0 0 16px rgba(139,92,246,0.4)}
-.wf-num{font-size:8px;font-weight:700;color:rgba(255,255,255,0.2);margin-bottom:2px}
-.wf-label{font-size:10px;font-weight:600;color:rgba(255,255,255,0.65)}
-.wf-desc{font-size:9px;color:rgba(255,255,255,0.28);margin-top:2px;line-height:1.4}
+.wf-num{font-size:8px;font-weight:700;color:rgba(255,255,255,0.5);margin-bottom:2px}
+.wf-label{font-size:10px;font-weight:600;color:rgba(255,255,255,0.75)}
+.wf-desc{font-size:9px;color:rgba(255,255,255,0.55);margin-top:2px;line-height:1.4}
 
 /* ── UPLOAD ZONE ── */
-.upload-zone{border:1px dashed rgba(96,150,245,0.25);border-radius:14px;padding:46px 36px;text-align:center;cursor:pointer;background:rgba(96,150,245,0.02);transition:all 0.2s;position:relative;overflow:hidden;margin-bottom:18px}
+.upload-zone{border:1px dashed rgba(96,150,245,0.3);border-radius:14px;padding:46px 36px;text-align:center;cursor:pointer;background:rgba(255,255,255,0.06);transition:all 0.2s;position:relative;overflow:hidden;margin-bottom:18px}
 .upload-zone:hover{border-color:rgba(96,150,245,0.5);background:rgba(96,150,245,0.05)}
 .uz-illus{margin-bottom:18px;display:flex;justify-content:center}
 .uz-title{font-size:17px;font-weight:800;color:#fff;margin-bottom:6px;letter-spacing:-0.3px}
-.uz-sub{font-size:11px;color:rgba(255,255,255,0.28);margin-bottom:24px}
+.uz-sub{font-size:11px;color:rgba(255,255,255,0.55);margin-bottom:24px}
 .uz-steps{display:flex;justify-content:center;gap:0}
-.uz-step{display:flex;align-items:center;gap:5px;padding:5px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);font-size:10px;color:rgba(255,255,255,0.35);white-space:nowrap;transition:all 0.15s}
+.uz-step{display:flex;align-items:center;gap:5px;padding:5px 12px;background:linear-gradient(135deg,#141d2e,#18253a);border:1px solid rgba(255,255,255,0.12);font-size:10px;color:rgba(255,255,255,0.5);white-space:nowrap;transition:all 0.15s}
 .uz-step:first-child{border-radius:6px 0 0 6px}
 .uz-step:last-child{border-radius:0 6px 6px 0}
 .uz-step:not(:first-child){border-left:none}
@@ -138,40 +260,40 @@ body{font-family:'Inter',sans-serif;background:#0f1623;min-height:100vh;color:#e
 /* ── PANEL ── */
 .panel{background:linear-gradient(135deg,#141d2e,#18253a);border:1px solid rgba(255,255,255,0.07);border-radius:11px;padding:16px}
 .panel-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
-.panel-title{font-size:10px;font-weight:700;color:rgba(255,255,255,0.28);text-transform:uppercase;letter-spacing:0.09em}
+.panel-title{font-size:10px;font-weight:700;color:rgba(255,255,255,0.55);text-transform:uppercase;letter-spacing:0.09em}
 .panel-link{font-size:10px;color:#6096f5;cursor:pointer;opacity:0.7}
 .panel-link:hover{opacity:1}
 
 /* ── SECTION HDR ── */
-.shd{font-size:10px;font-weight:700;color:rgba(255,255,255,0.22);text-transform:uppercase;letter-spacing:0.09em;margin-bottom:8px;display:flex;align-items:center;gap:8px}
-.shd::after{content:'';flex:1;height:1px;background:rgba(255,255,255,0.05)}
+.shd{font-size:10px;font-weight:700;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:0.09em;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.shd::after{content:'';flex:1;height:1px;background:#0f1623}
 
 /* ── DONUT ── */
 .donut-wrap{display:flex;flex-direction:column;align-items:center;gap:12px}
 .dl{display:flex;flex-direction:column;gap:5px;width:100%}
-.dl-item{display:flex;align-items:center;gap:6px;font-size:10px;color:rgba(255,255,255,0.45)}
+.dl-item{display:flex;align-items:center;gap:6px;font-size:10px;color:rgba(255,255,255,0.6)}
 .dl-dot{width:7px;height:7px;border-radius:2px;flex-shrink:0}
 
 /* ── FOLDER LIST ── */
 .f-list{display:flex;flex-direction:column;gap:8px}
 .f-row{cursor:pointer;padding:6px 8px;border-radius:7px;transition:background 0.15s}
-.f-row:hover{background:rgba(255,255,255,0.03)}
+.f-row:hover{background:linear-gradient(135deg,#141d2e,#18253a)}
 .f-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
 .f-name{font-size:11px;color:rgba(255,255,255,0.6);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:65%}
-.f-count{font-size:11px;font-weight:700;color:#6096f5}
-.f-track{background:rgba(255,255,255,0.05);border-radius:3px;height:5px;overflow:hidden}
+.f-count{font-size:11px;font-weight:700;color:#3d6fd4}
+.f-track{background:#0f1623;border-radius:3px;height:5px;overflow:hidden}
 .f-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,#4f82e8,#6c6ef5)}
 .f-tags{display:flex;gap:3px;flex-wrap:wrap;margin-top:4px}
 
 /* ── AI INSIGHT ── */
 .insight-list{display:flex;flex-direction:column;gap:8px}
-.insight-item{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;cursor:pointer;transition:all 0.15s}
-.insight-item:hover{background:rgba(96,150,245,0.06);border-color:rgba(96,150,245,0.15)}
+.insight-item{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;background:linear-gradient(135deg,#141d2e,#18253a);border:1px solid rgba(255,255,255,0.12);border-radius:8px;cursor:pointer;transition:all 0.15s}
+.insight-item:hover{background:rgba(255,255,255,0.06);border-color:rgba(96,150,245,0.15)}
 .insight-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .insight-icon svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-.insight-title{font-size:11px;font-weight:600;color:rgba(255,255,255,0.75);margin-bottom:2px}
-.insight-sub{font-size:10px;color:rgba(255,255,255,0.3);line-height:1.4}
-.insight-arr{margin-left:auto;color:rgba(255,255,255,0.2);font-size:14px;align-self:center}
+.insight-title{font-size:11px;font-weight:600;color:rgba(255,255,255,0.8);margin-bottom:2px}
+.insight-sub{font-size:10px;color:rgba(255,255,255,0.55);line-height:1.4}
+.insight-arr{margin-left:auto;color:rgba(255,255,255,0.5);font-size:14px;align-self:center}
 
 /* ── BADGES ── */
 .badge{display:inline-block;padding:2px 7px;border-radius:4px;font-size:9px;font-weight:600;margin:1px}
@@ -183,18 +305,18 @@ body{font-family:'Inter',sans-serif;background:#0f1623;min-height:100vh;color:#e
 /* ── TABLE ── */
 .tbl-wrap{overflow-x:auto}
 table{width:100%;border-collapse:collapse;font-size:11px}
-th{text-align:left;font-size:9px;font-weight:700;color:rgba(255,255,255,0.2);padding:7px 10px;border-bottom:1px solid rgba(255,255,255,0.05);text-transform:uppercase;letter-spacing:0.06em;white-space:nowrap}
-td{padding:9px 10px;border-bottom:1px solid rgba(255,255,255,0.04);color:rgba(255,255,255,0.62);vertical-align:top;line-height:1.5}
+th{text-align:left;font-size:9px;font-weight:700;color:rgba(255,255,255,0.5);padding:7px 10px;border-bottom:1px solid rgba(255,255,255,0.05);text-transform:uppercase;letter-spacing:0.06em;white-space:nowrap}
+td{padding:9px 10px;border-bottom:1px solid rgba(255,255,255,0.04);color:rgba(255,255,255,0.7);vertical-align:top;line-height:1.5}
 tr:last-child td{border-bottom:none}
-tr:hover td{background:rgba(255,255,255,0.02)}
+tr:hover td{background:rgba(30,58,95,0.03)}
 
 /* ── SUGGEST ── */
-.sg{margin-bottom:3px;font-size:10px;line-height:1.5;color:rgba(255,255,255,0.48)}
+.sg{margin-bottom:3px;font-size:10px;line-height:1.5;color:rgba(255,255,255,0.6)}
 .sg strong{color:rgba(255,255,255,0.78);font-weight:600}
 .src{display:inline-block;padding:1px 4px;border-radius:3px;font-size:8px;font-weight:600;margin-left:2px;background:rgba(96,150,245,0.15);color:#7aa3f0}
 .src-ai{background:rgba(124,58,237,0.15);color:#b08af5}
 .src-cr{background:rgba(30,180,100,0.15);color:#3dba7a}
-.src-def{background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.3)}
+.src-def{background:linear-gradient(135deg,#141d2e,#18253a);color:rgba(255,255,255,0.55)}
 
 /* ── LINK ── */
 .lnk{display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:5px;border:1px solid rgba(96,150,245,0.2);color:#7aa3f0;font-size:10px;background:transparent;cursor:pointer;text-decoration:none;transition:all 0.15s}
@@ -202,37 +324,37 @@ tr:hover td{background:rgba(255,255,255,0.02)}
 
 /* ── PROGRESS ── */
 .prog-item{margin-bottom:11px}
-.prog-hd{display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px;color:rgba(255,255,255,0.4)}
-.prog-track{background:rgba(255,255,255,0.06);border-radius:3px;height:6px;overflow:hidden}
+.prog-hd{display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px;color:rgba(255,255,255,0.55)}
+.prog-track{background:linear-gradient(135deg,#141d2e,#18253a);border-radius:3px;height:6px;overflow:hidden}
 .prog-fill{height:100%;border-radius:3px;transition:width 0.8s ease}
 
 /* ── PRIORITY ── */
-.pri{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.05);font-size:12px;color:rgba(255,255,255,0.48)}
+.pri{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.05);font-size:12px;color:rgba(255,255,255,0.6)}
 .pri:last-child{border-bottom:none}
 .pri-n{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;background:rgba(96,150,245,0.12);color:#7aa3f0;border:1px solid rgba(96,150,245,0.18)}
 
 /* ── MISC ── */
-.empty{text-align:center;padding:28px;color:rgba(255,255,255,0.18);font-size:12px}
+.empty{text-align:center;padding:28px;color:rgba(255,255,255,0.2);font-size:12px}
 .proc{text-align:center;padding:40px}
 .proc-icon{display:flex;justify-content:center;margin-bottom:14px}
-.proc-t{font-size:14px;font-weight:700;color:rgba(255,255,255,0.55);margin-bottom:4px}
-.proc-s{font-size:11px;color:rgba(255,255,255,0.25)}
+.proc-t{font-size:14px;font-weight:700;color:rgba(255,255,255,0.65);margin-bottom:4px}
+.proc-s{font-size:11px;color:rgba(255,255,255,0.5)}
 .proc-count{font-size:13px;color:#6096f5;font-weight:600;margin-top:8px}
 
 ::-webkit-scrollbar{width:3px;height:3px}
 ::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.07);border-radius:3px}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.08);border-radius:3px}
 
 /* ── SHUTTER ANIMATION ── */
 @keyframes shutterClose{0%{transform:scaleX(0) scaleY(0)}100%{transform:scaleX(1) scaleY(1)}}
 @keyframes shutterOpen{0%{opacity:1}100%{opacity:0}}
-.shutter-container{position:fixed;inset:0;z-index:9999;pointer-events:none;display:none;background:#000}
+.shutter-container{position:fixed;inset:0;z-index:9999;pointer-events:none;display:none;background:#080e1a}
 .shutter-container.running{display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:all}
 .aperture-svg{animation:apertureRotate 0.6s ease-in-out}
 @keyframes apertureRotate{0%{transform:rotate(0deg) scale(0.5);opacity:0}30%{transform:rotate(60deg) scale(1.1);opacity:1}70%{transform:rotate(90deg) scale(1);opacity:1}100%{transform:rotate(0deg) scale(1);opacity:1}}
 .shutter-msg{color:#fff;font-size:14px;font-weight:600;margin-top:20px;letter-spacing:0.05em;opacity:0;animation:fadeUp 0.4s 0.5s forwards}
 @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-.shutter-sub{color:rgba(255,255,255,0.45);font-size:11px;margin-top:6px;opacity:0;animation:fadeUp 0.4s 0.7s forwards}
+.shutter-sub{color:rgba(255,255,255,0.6);font-size:11px;margin-top:6px;opacity:0;animation:fadeUp 0.4s 0.7s forwards}
 
 /* ── ANIMATED CAMERA UPLOAD ── */
 .cam-stage{position:relative;width:140px;height:140px;margin:0 auto;display:flex;align-items:center;justify-content:center}
@@ -313,15 +435,11 @@ tr:hover td{background:rgba(255,255,255,0.02)}
         <span class="nav-badge" id="badge-overview">!</span>
       </div>
       <div class="nav-item" onclick="nav('batch',this)">
-        <div class="nav-icon"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div>
-        Batch edit
+        <div class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>
+        Review suggestions
         <span class="nav-badge" id="badge-batch">0</span>
       </div>
-      <div class="nav-item" onclick="nav('manual',this)">
-        <div class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg></div>
-        Manual review
-        <span class="nav-badge" id="badge-manual">0</span>
-      </div>
+
       <div class="nav-section">Reports</div>
       <div class="nav-item" onclick="nav('progress',this)">
         <div class="nav-icon"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
@@ -493,24 +611,23 @@ tr:hover td{background:rgba(255,255,255,0.02)}
 
         <!-- STATS SECTION -->
         <div id="ov" style="display:none">
-          <div class="shd">Library health — <span id="exportLabel" style="color:#6096f5;text-transform:none;letter-spacing:0;font-weight:400;font-size:10px"></span></div>
-          <div class="kpi-strip" id="kpi1" style="grid-template-columns:repeat(5,1fr);margin-bottom:16px"></div>
 
-          <div class="grid-21">
-            <div>
-              <div class="shd">Top folders with most issues</div>
-              <div class="panel">
-                <div class="f-list" id="fList"></div>
-              </div>
-            </div>
-            <div>
-              <div class="shd">AI insights</div>
-              <div class="insight-list" id="insightList"></div>
-            </div>
+          <!-- API note -->
+          <div id="apiNote"></div>
+
+          <div class="shd">Library health — <span id="exportLabel" style="color:#6096f5;text-transform:none;letter-spacing:0;font-weight:400;font-size:10px"></span></div>
+          <div class="kpi-strip" id="kpi1" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px"></div>
+
+          <div class="shd">Missing fields — how many photos need each field fixed</div>
+          <div class="kpi-strip" id="kpi2" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px"></div>
+
+          <div class="shd">Top folders with most issues</div>
+          <div class="panel" style="margin-bottom:14px">
+            <div class="f-list" id="fList"></div>
           </div>
 
-          <div class="shd">Missing fields breakdown</div>
-          <div class="grid-2">
+          <div class="shd">Visual breakdown</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">
             <div class="panel">
               <div class="panel-hd"><div class="panel-title">Completeness</div></div>
               <div class="donut-wrap">
@@ -518,14 +635,20 @@ tr:hover td{background:rgba(255,255,255,0.02)}
                   <canvas id="donutChart" width="110" height="110" role="img" aria-label="Completeness donut chart"></canvas>
                   <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
                     <span style="font-size:18px;font-weight:800;color:#fff" id="donutPct">0%</span>
-                    <span style="font-size:8px;color:rgba(255,255,255,0.3)">complete</span>
+                    <span style="font-size:8px;color:rgba(255,255,255,0.55)">complete</span>
                   </div>
                 </div>
                 <div class="dl" id="donutLeg"></div>
               </div>
             </div>
             <div class="panel">
-              <div class="panel-hd"><div class="panel-title">Missing fields</div></div>
+              <div class="panel-hd"><div class="panel-title">Missing fields proportion</div></div>
+              <div style="position:relative;height:130px;display:flex;align-items:center;justify-content:center">
+                <canvas id="pieChart" width="260" height="130" role="img" aria-label="Missing fields pie chart"></canvas>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="panel-hd"><div class="panel-title">Missing fields count</div></div>
               <div style="position:relative;height:130px">
                 <canvas id="barChart" role="img" aria-label="Missing fields bar chart"></canvas>
               </div>
@@ -536,24 +659,189 @@ tr:hover td{background:rgba(255,255,255,0.02)}
 
       <!-- BATCH PAGE -->
       <div id="page-batch" class="page">
-        <div class="kpi-strip" id="bKpi" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px"></div>
+        <div class="kpi-strip" id="bKpi" style="grid-template-columns:repeat(3,1fr);margin-bottom:16px"></div>
+
+        <!-- Search and filter bar -->
+        <div style="background:linear-gradient(135deg,#141d2e,#18253a);border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;gap:10px">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="assetSearch" placeholder="Search by folder, file name or suggested text..." oninput="filterAssets()" style="flex:1;background:transparent;border:none;outline:none;font-size:12px;color:#fff;font-family:Inter,sans-serif"/>
+          <div style="font-size:10px;color:rgba(255,255,255,0.25)" id="assetCount">0 assets</div>
+        </div>
+
+        <!-- Asset list -->
+        <div id="assetList" style="display:flex;flex-direction:column;gap:8px"></div>
+
+        <!-- Download bar -->
+        <div id="batchDownloadBar" style="display:none;position:sticky;bottom:0;background:linear-gradient(135deg,rgba(13,122,74,0.95),rgba(15,154,90,0.95));border:1px solid rgba(34,201,122,0.3);border-radius:10px;padding:12px 18px;margin-top:14px;display:flex;align-items:center;justify-content:space-between;backdrop-filter:blur(10px)">
+          <div style="font-size:11px;color:rgba(255,255,255,0.7)" id="batchAcceptCount">0 suggestions accepted</div>
+          <button onclick="doDownload()" style="background:#fff;border:none;border-radius:7px;padding:8px 18px;font-size:11px;color:#0d7a4a;font-weight:700;cursor:pointer">⬇ Download corrected CSV</button>
+        </div>
+
+        <div id="batchEmpty" class="empty">Upload your CSV first</div>
+      </div>
+
+            <!-- LIBRARY HEALTH PAGE -->
+      <div id="page-health" class="page">
+        <div class="kpi-strip" id="healthKpi" style="grid-template-columns:repeat(3,1fr);margin-bottom:16px"></div>
+        
+        <div style="background:rgba(96,150,245,0.08);border:1px solid rgba(96,150,245,0.2);border-radius:10px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:flex-start;gap:12px">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6096f5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;margin-top:2px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <div>
+            <div style="font-size:12px;font-weight:600;color:#6096f5;margin-bottom:4px">Based on your CSV export only</div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.4);line-height:1.6">The statistics below reflect only the incomplete photos in your last export — not the full Orange Logic library. To see complete library health including all photos, a direct connection to the Orange Logic API is required. Export a fresh CSV regularly to keep these numbers current.</div>
+          </div>
+        </div>
+
+        <div style="background:linear-gradient(135deg,rgba(34,201,122,0.08),rgba(96,150,245,0.08));border:1px solid rgba(34,201,122,0.2);border-radius:10px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:flex-start;gap:12px">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22c97a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;margin-top:2px"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          <div>
+            <div style="font-size:12px;font-weight:600;color:#22c97a;margin-bottom:4px">Full library health — coming with Orange Logic API</div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.4);line-height:1.6">With a direct API connection the dashboard will show total photos across the entire library, real time completion rates, weekly progress tracking and automatic Monday morning health reports — without any manual CSV exports.</div>
+          </div>
+        </div>
+
+        <div class="shd">What we can see from your export</div>
+        <div class="grid-2" style="margin-bottom:14px">
+          <div class="panel">
+            <div class="panel-hd"><div class="panel-title">Completeness from export</div></div>
+            <div class="donut-wrap">
+              <div style="position:relative;width:110px;height:110px">
+                <canvas id="healthDonut" width="110" height="110" role="img" aria-label="Health completeness donut chart"></canvas>
+                <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+                  <span style="font-size:18px;font-weight:800;color:#fff" id="healthPct">0%</span>
+                  <span style="font-size:8px;color:rgba(255,255,255,0.3)">complete</span>
+                </div>
+              </div>
+              <div class="dl" id="healthLeg"></div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-hd"><div class="panel-title">Missing fields breakdown</div></div>
+            <div style="position:relative;height:130px">
+              <canvas id="healthBar" role="img" aria-label="Health missing fields bar chart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel" style="margin-bottom:14px">
+          <div class="shd">Top folders needing attention</div>
+          <div class="f-list" id="healthFolders"></div>
+        </div>
+
         <div class="panel">
-          <div class="shd">Batch edit candidates — copy suggested text directly into Orange Logic</div>
-          <div class="tbl-wrap" id="bTbl"><div class="empty">Upload your CSV first</div></div>
+          <div class="shd">What full library health will show with API</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:12px">
+              <div style="font-size:11px;font-weight:600;color:rgba(255,255,255,0.6);margin-bottom:6px">Total library size</div>
+              <div style="font-size:20px;font-weight:800;color:rgba(255,255,255,0.2)">— —</div>
+              <div style="font-size:10px;color:rgba(255,255,255,0.2);margin-top:4px">Requires API connection</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:12px">
+              <div style="font-size:11px;font-weight:600;color:rgba(255,255,255,0.6);margin-bottom:6px">Overall completion rate</div>
+              <div style="font-size:20px;font-weight:800;color:rgba(255,255,255,0.2)">— —</div>
+              <div style="font-size:10px;color:rgba(255,255,255,0.2);margin-top:4px">Requires API connection</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:12px">
+              <div style="font-size:11px;font-weight:600;color:rgba(255,255,255,0.6);margin-bottom:6px">Fixed this week</div>
+              <div style="font-size:20px;font-weight:800;color:rgba(255,255,255,0.2)">— —</div>
+              <div style="font-size:10px;color:rgba(255,255,255,0.2);margin-top:4px">Requires API connection</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:12px">
+              <div style="font-size:11px;font-weight:600;color:rgba(255,255,255,0.6);margin-bottom:6px">New incomplete this week</div>
+              <div style="font-size:20px;font-weight:800;color:rgba(255,255,255,0.2)">— —</div>
+              <div style="font-size:10px;color:rgba(255,255,255,0.2);margin-top:4px">Requires API connection</div>
+            </div>
+          </div>
         </div>
       </div>
 
-      <!-- MANUAL PAGE -->
-      <div id="page-manual" class="page">
-        <div class="panel">
-          <div class="shd">Photos requiring individual attention</div>
-          <div class="tbl-wrap" id="mTbl"><div class="empty">Upload your CSV first</div></div>
+      <!-- PERSON REVIEW PAGE -->
+      <div id="page-person" class="page">
+        <div style="background:linear-gradient(135deg,rgba(124,58,237,0.1),rgba(96,150,245,0.08));border:1px solid rgba(124,58,237,0.25);border-radius:12px;padding:28px;text-align:center;margin-bottom:20px">
+          <div style="width:60px;height:60px;background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.3);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          </div>
+          <div style="font-size:16px;font-weight:700;color:#fff;margin-bottom:8px">Person Review</div>
+          <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.3);border-radius:20px;padding:4px 14px;font-size:11px;font-weight:700;color:#a78bfa;margin-bottom:16px">Coming soon</div>
+          <div style="font-size:12px;color:rgba(255,255,255,0.4);line-height:1.7;max-width:500px;margin:0 auto">This feature will allow you to find and verify photos where a specific person is mentioned in the caption or tags but may not actually appear in the image.</div>
+        </div>
+
+        <div class="panel" style="margin-bottom:14px">
+          <div class="shd">What Person Review will do</div>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div style="display:flex;align-items:flex-start;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
+              <div style="width:28px;height:28px;border-radius:50%;background:rgba(96,150,245,0.12);border:1px solid rgba(96,150,245,0.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:700;color:#6096f5">1</div>
+              <div>
+                <div style="font-size:12px;font-weight:600;color:#fff;margin-bottom:3px">Search entire library for any person</div>
+                <div style="font-size:11px;color:rgba(255,255,255,0.4)">Type any name — the dashboard searches all captions and tags across the entire Orange Logic library instantly using the API</div>
+              </div>
+            </div>
+            <div style="display:flex;align-items:flex-start;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
+              <div style="width:28px;height:28px;border-radius:50%;background:rgba(96,150,245,0.12);border:1px solid rgba(96,150,245,0.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:700;color:#6096f5">2</div>
+              <div>
+                <div style="font-size:12px;font-weight:600;color:#fff;margin-bottom:3px">Run Orange Logic facial recognition automatically</div>
+                <div style="font-size:11px;color:rgba(255,255,255,0.4)">Uses Orange Logic's own built in facial recognition on all flagged photos — no external tools needed — everything stays within Orange Logic</div>
+              </div>
+            </div>
+            <div style="display:flex;align-items:flex-start;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
+              <div style="width:28px;height:28px;border-radius:50%;background:rgba(96,150,245,0.12);border:1px solid rgba(96,150,245,0.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:700;color:#6096f5">3</div>
+              <div>
+                <div style="font-size:12px;font-weight:600;color:#fff;margin-bottom:3px">Sort results automatically</div>
+                <div style="font-size:11px;color:rgba(255,255,255,0.4)">Confirmed correct — leave as is. Clear non-match — flag for correction. Uncertain — send to human reviewer. Only uncertain photos need human eyes</div>
+              </div>
+            </div>
+            <div style="display:flex;align-items:flex-start;gap:12px;padding:10px 0">
+              <div style="width:28px;height:28px;border-radius:50%;background:rgba(96,150,245,0.12);border:1px solid rgba(96,150,245,0.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:700;color:#6096f5">4</div>
+              <div>
+                <div style="font-size:12px;font-weight:600;color:#fff;margin-bottom:3px">Apply corrections directly in Orange Logic</div>
+                <div style="font-size:11px;color:rgba(255,255,255,0.4)">Removes the person's name from captions and tags where confirmed incorrect — directly in Orange Logic via API — no CSV re-import needed</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);border-radius:10px;padding:14px 18px;display:flex;align-items:flex-start;gap:12px">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;margin-top:2px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <div style="font-size:11px;color:rgba(255,255,255,0.45);line-height:1.6">This feature requires the Orange Logic API connection. We are currently awaiting confirmation from Glenn and the team on API access and Orange Logic's built in facial recognition capabilities before building this feature.</div>
         </div>
       </div>
 
       <!-- PROGRESS PAGE -->
       <div id="page-progress" class="page">
-        <div id="progContent"><div class="empty">Upload your CSV first</div></div>
+
+        <!-- API note -->
+        <div style="background:rgba(96,150,245,0.06);border:1px solid rgba(96,150,245,0.18);border-radius:8px;padding:10px 14px;margin-bottom:16px;display:flex;align-items:flex-start;gap:10px">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6096f5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;margin-top:2px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span style="font-size:11px;color:rgba(255,255,255,0.4);line-height:1.6">Progress is tracked each time you upload a new CSV. The dashboard saves a snapshot automatically so you can see improvement over time. <strong style="color:#6096f5">With the Orange Logic API</strong> this will update every Monday morning automatically — no manual exports needed.</span>
+        </div>
+
+        <!-- Progress comparison cards -->
+        <div class="kpi-strip" id="progKpi" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px"></div>
+
+        <!-- Timeline chart -->
+        <div class="panel" style="margin-bottom:14px">
+          <div class="panel-hd">
+            <div class="panel-title">Incomplete photos per upload — should trend downward over time</div>
+            <div style="font-size:10px;color:rgba(255,255,255,0.25)" id="snapshotCount">0 snapshots recorded</div>
+          </div>
+          <div style="position:relative;height:160px">
+            <canvas id="timelineChart" role="img" aria-label="Progress over time chart"></canvas>
+          </div>
+          <div style="font-size:10px;color:rgba(255,255,255,0.2);margin-top:8px;text-align:center">Each point is one CSV upload. As you fix photos and re-export the number of incomplete photos should go down. Upload a new CSV each week to track your progress.</div>
+        </div>
+
+        <!-- Field progress -->
+        <div class="panel" style="margin-bottom:14px">
+          <div class="panel-hd"><div class="panel-title">Completion by field — this upload</div></div>
+          <div id="fieldProgress"></div>
+        </div>
+
+        <!-- What to do next -->
+        <div class="panel">
+          <div class="panel-hd"><div class="panel-title">What to do next</div></div>
+          <div id="nextSteps"></div>
+        </div>
+
       </div>
 
     </div>
@@ -648,10 +936,12 @@ function loadCSV(e){
           document.getElementById('ov').style.display='block';
           document.getElementById('exportLabel').textContent='as of '+now.toLocaleDateString();
           document.getElementById('badge-overview').classList.add('show');
-          document.getElementById('badge-batch').textContent=bGroups().filter(g=>g.n>1).length;
-          document.getElementById('badge-batch').classList.add('show');
-          document.getElementById('badge-manual').textContent=bad;
-          document.getElementById('badge-manual').classList.add('show');
+        document.getElementById('badge-batch').textContent=rows.filter(r=>r._bad).length;
+        document.getElementById('badge-batch').classList.add('show');
+          
+          
+          
+          
           renderAll();
         }catch(err){alert('Error: '+err.message);location.reload();}
       };
@@ -681,85 +971,6 @@ function doDownload(){
   XLSX.writeFile(wb,'reimport_ready.csv');
 }
 
-function renderAll(){renderOverview();renderBatch();renderManual();renderProgress();}
-
-function renderOverview(){
-  const total=rows.length,bad=rows.filter(r=>r._bad).length,good=total-bad;
-  const pct=total>0?Math.round(good/total*100):0;
-  const mH=rows.filter(r=>r._m.includes('Headline')).length;
-  const mC=rows.filter(r=>r._m.includes('Caption')).length;
-  const mCr=rows.filter(r=>r._m.includes('Credit')).length;
-  const mV=rows.filter(r=>r._m.includes('Visibility')).length;
-  const bg=bGroups();
-  const bCnt=bg.filter(g=>g.n>1).length;
-  const bPh=bg.filter(g=>g.n>1).reduce((s,g)=>s+g.n,0);
-
-  const kpiDefs=[
-    {l:'Assets analysed',v:total.toLocaleString(),sub:'In this export',c:'#6096f5',bc:'rgba(96,150,245,0.25)',icon:'<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>'},
-    {l:'Missing metadata',v:bad.toLocaleString(),sub:`${100-pct}% of library`,c:'#e87880',bc:'rgba(224,92,106,0.25)',icon:'<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>'},
-    {l:'AI suggestions',v:reimport.length,sub:'Ready to apply',c:'#a78bfa',bc:'rgba(167,139,250,0.25)',icon:'<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>'},
-    {l:'Ready for import',v:bPh,sub:'Photos batchable',c:'#22c97a',bc:'rgba(34,201,122,0.25)',icon:'<polyline points="20 6 9 17 4 12"/>'},
-    {l:'Metadata completeness',v:pct+'%',sub:`${good} of ${total} complete`,c:'#6096f5',bc:'rgba(96,150,245,0.25)',icon:'<path d="M21 12a9 9 0 0 1-9 9m9-9a9 9 0 0 0-9-9m9 9H3m9 9a9 9 0 0 1-9-9m9 9c1.66 0 3-4.03 3-9s-1.34-9-3-9m0 18c-1.66 0-3-4.03-3-9s1.34-9 3-9"/>'},
-  ];
-  document.getElementById('kpi1').innerHTML=kpiDefs.map(k=>`
-    <div class="kpi-card" style="border-bottom:2px solid ${k.c}">
-      <div class="kpi-lbl">
-        <div class="kpi-icon" style="background:${k.bc};color:${k.c}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${k.icon}</svg></div>
-        ${k.l}
-      </div>
-      <div class="kpi-val" style="color:${k.c}">${k.v}</div>
-      <div class="kpi-sub">${k.sub}</div>
-    </div>`).join('');
-
-  // Folder list
-  const fc={},fm={};
-  rows.filter(r=>r._bad).forEach(r=>{
-    const f=r['Folder Path']||'Unknown';
-    if(!fc[f]){fc[f]=0;fm[f]=new Set();}
-    fc[f]++;r._m.forEach(m=>fm[f].add(m));
-  });
-  const sorted=Object.entries(fc).sort((a,b)=>b[1]-a[1]).slice(0,6);
-  const maxN=sorted[0]?.[1]||1;
-  document.getElementById('fList').innerHTML=sorted.length?sorted.map(([f,n])=>{
-    const w=Math.round(n/maxN*100);
-    const tags=[...fm[f]].map(m=>`<span class="badge b-r">${m}</span>`).join('');
-    const short=f.length>38?f.slice(0,38)+'…':f;
-    return`<div class="f-row"><div class="f-top"><div class="f-name">${short}</div><div class="f-count">${n}</div></div><div class="f-track"><div class="f-fill" style="width:${w}%"></div></div><div class="f-tags">${tags}</div></div>`;
-  }).join(''):'<div class="empty" style="padding:10px;font-size:11px">Library is clean</div>';
-
-  // AI insights
-  const insights=[];
-  if(mC>0)insights.push({icon:'<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',c:'rgba(167,139,250,0.2)',tc:'#a78bfa',t:'Missing captions detected',s:`${mC} photos need caption descriptions`});
-  if(mCr>0)insights.push({icon:'<circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/>',c:'rgba(96,150,245,0.2)',tc:'#7aa3f0',t:'Credit attribution missing',s:`${mCr} photos missing photographer credit`});
-  if(mH>0)insights.push({icon:'<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>',c:'rgba(201,168,58,0.2)',tc:'#c9a83a',t:'Headlines need attention',s:`${mH} photos missing headline metadata`});
-  if(!insights.length)insights.push({icon:'<polyline points="20 6 9 17 4 12"/>',c:'rgba(34,201,122,0.2)',tc:'#22c97a',t:'Library looks great!',s:'All fields are complete for this export'});
-  document.getElementById('insightList').innerHTML=insights.map(i=>`
-    <div class="insight-item">
-      <div class="insight-icon" style="background:${i.c};color:${i.tc}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${i.icon}</svg></div>
-      <div><div class="insight-title">${i.t}</div><div class="insight-sub">${i.s}</div></div>
-      <div class="insight-arr">›</div>
-    </div>`).join('');
-
-  // Donut
-  if(donutInst)donutInst.destroy();
-  donutInst=new Chart(document.getElementById('donutChart').getContext('2d'),{
-    type:'doughnut',
-    data:{labels:['Complete','Incomplete'],datasets:[{data:[good||0.01,bad],backgroundColor:['#6096f5','rgba(255,255,255,0.06)'],borderWidth:0,hoverBackgroundColor:['#7aa3f0','rgba(255,255,255,0.1)']}]},
-    options:{responsive:false,cutout:'68%',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${ctx.raw===0.01?0:ctx.raw}`}}}}
-  });
-  document.getElementById('donutPct').textContent=pct+'%';
-  document.getElementById('donutLeg').innerHTML=`
-    <div class="dl-item"><div class="dl-dot" style="background:#6096f5"></div>${pct}% complete (${good})</div>
-    <div class="dl-item"><div class="dl-dot" style="background:rgba(255,255,255,0.12)"></div>${100-pct}% incomplete (${bad})</div>`;
-
-  // Bar chart
-  if(barInst)barInst.destroy();
-  barInst=new Chart(document.getElementById('barChart').getContext('2d'),{
-    type:'bar',
-    data:{labels:['Headline','Caption','Credit','Visibility'],datasets:[{data:[mH,mC,mCr,mV],backgroundColor:['rgba(224,92,106,0.6)','rgba(201,168,58,0.6)','rgba(224,92,106,0.6)','rgba(201,168,58,0.6)'],borderColor:['#e05c6a','#c9a83a','#e05c6a','#c9a83a'],borderWidth:1,borderRadius:5,hoverBackgroundColor:['rgba(224,92,106,0.9)','rgba(201,168,58,0.9)','rgba(224,92,106,0.9)','rgba(201,168,58,0.9)']}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.raw} photos missing`}}},scales:{x:{grid:{display:false},ticks:{color:'rgba(255,255,255,0.3)',font:{size:10}}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'rgba(255,255,255,0.25)',font:{size:9}},beginAtZero:true}}}
-  });
-}
 
 function bGroups(){
   const g={};
@@ -778,27 +989,283 @@ function srcTag(s){
   return`<span class="src">from folder</span>`;
 }
 
-function renderBatch(){
-  const groups=bGroups().filter(g=>g.n>1);
-  const total=groups.reduce((s,g)=>s+g.n,0);
-  document.getElementById('bKpi').innerHTML=`
-    <div class="kpi-card" style="border-bottom:2px solid #22c97a"><div class="kpi-lbl">Batch groups ready</div><div class="kpi-val" style="color:#22c97a;font-size:20px">${groups.length}</div><div class="kpi-sub">Fix together in one action</div></div>
-    <div class="kpi-card" style="border-bottom:2px solid #6096f5"><div class="kpi-lbl">Photos batchable</div><div class="kpi-val" style="color:#7aa3f0;font-size:20px">${total}</div><div class="kpi-sub">Fixed in bulk</div></div>
-    <div class="kpi-card" style="border-bottom:2px solid #8b5cf6"><div class="kpi-lbl">Est. time to fix all</div><div class="kpi-val" style="font-size:20px">~${groups.length*5}min</div><div class="kpi-sub">vs hours manually</div></div>`;
-  if(!groups.length){document.getElementById('bTbl').innerHTML='<div class="empty">No batch candidates found</div>';return;}
-  let html=`<table><thead><tr><th>Folder path</th><th>Assets</th><th>Missing</th><th>Suggested text — copy into Orange Logic</th><th>Open</th></tr></thead><tbody>`;
-  groups.forEach(g=>{
-    const s=g.rows[0];
-    const badges=g.missing.map(m=>`<span class="badge b-r">${m}</span>`).join(' ');
-    let sug='';
-    if(s._hl)sug+=`<div class="sg"><strong>Headline:</strong> ${s._hl} ${srcTag('folder')}</div>`;
-    if(s._cap)sug+=`<div class="sg"><strong>Caption:</strong> ${s._cap} ${srcTag('ai')}</div>`;
-    if(s._cr)sug+=`<div class="sg"><strong>Credit:</strong> ${s._cr} ${srcTag(s._crSrc)}</div>`;
-    if(s._vis)sug+=`<div class="sg"><strong>Visibility:</strong> ${s._vis} ${srcTag('default')}</div>`;
-    html+=`<tr><td style="font-weight:600;color:#e2e8f0;min-width:130px">${g.folder}</td><td><span class="badge b-y">${g.n}</span></td><td>${badges}</td><td>${sug}</td><td><a class="lnk" href="${g.url}" target="_blank">Open ↗</a></td></tr>`;
+function renderOverview(){
+  const total=rows.length,bad=rows.filter(r=>r._bad).length,good=total-bad;
+  const pct=total>0?Math.round(good/total*100):0;
+  const mH=rows.filter(r=>r._m.includes('Headline')).length;
+  const mC=rows.filter(r=>r._m.includes('Caption')).length;
+  const mCr=rows.filter(r=>r._m.includes('Credit')).length;
+  const mV=rows.filter(r=>r._m.includes('Visibility')).length;
+  const bg=bGroups();
+  const bCnt=bg.filter(g=>g.n>1).length;
+  const bPh=bg.filter(g=>g.n>1).reduce((s,g)=>s+g.n,0);
+
+  // Top row - summary cards
+  const kpiDefs=[
+    {l:'Assets analysed',v:total.toLocaleString(),sub:'In this export',c:'#6096f5',bc:'rgba(96,150,245,0.25)',icon:'<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>'},
+    {l:'Total incomplete',v:bad.toLocaleString(),sub:`${100-pct}% of this export`,c:'#e87880',bc:'rgba(224,92,106,0.25)',icon:'<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>'},
+    {l:'Complete',v:good.toLocaleString(),sub:`${pct}% of this export`,c:'#22c97a',bc:'rgba(34,201,122,0.25)',icon:'<polyline points="20 6 9 17 4 12"/>'},
+    
+  ];
+
+  const kpi1=document.getElementById('kpi1');
+  if(kpi1) kpi1.innerHTML=kpiDefs.map(k=>`
+    <div class="kpi-card" style="border-bottom:2px solid ${k.c}">
+      <div class="kpi-lbl">
+        <div class="kpi-icon" style="background:${k.bc};color:${k.c}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${k.icon}</svg></div>
+        ${k.l}
+      </div>
+      <div class="kpi-val" style="color:${k.c}">${k.v}</div>
+      <div class="kpi-sub">${k.sub}</div>
+    </div>`).join('');
+
+  // Missing fields breakdown cards
+  const kpi2=document.getElementById('kpi2');
+  if(kpi2) kpi2.innerHTML=`
+    <div class="kpi-card" style="border-bottom:2px solid #e05c6a">
+      <div class="kpi-lbl">Missing headline</div>
+      <div class="kpi-val" style="color:#e87880;font-size:20px">${mH}</div>
+      <div class="kpi-sub">${total>0?Math.round(mH/total*100):0}% of this export</div>
+      <div style="margin-top:6px;font-size:9px;color:rgba(255,255,255,0.2);font-style:italic">With API: % of whole library</div>
+    </div>
+    <div class="kpi-card" style="border-bottom:2px solid #c9a83a">
+      <div class="kpi-lbl">Missing caption</div>
+      <div class="kpi-val" style="color:#c9a83a;font-size:20px">${mC}</div>
+      <div class="kpi-sub">${total>0?Math.round(mC/total*100):0}% of this export</div>
+      <div style="margin-top:6px;font-size:9px;color:rgba(255,255,255,0.2);font-style:italic">With API: % of whole library</div>
+    </div>
+    <div class="kpi-card" style="border-bottom:2px solid #e05c6a">
+      <div class="kpi-lbl">Missing credit</div>
+      <div class="kpi-val" style="color:#e87880;font-size:20px">${mCr}</div>
+      <div class="kpi-sub">${total>0?Math.round(mCr/total*100):0}% of this export</div>
+      <div style="margin-top:6px;font-size:9px;color:rgba(255,255,255,0.2);font-style:italic">With API: % of whole library</div>
+    </div>
+    <div class="kpi-card" style="border-bottom:2px solid #c9a83a">
+      <div class="kpi-lbl">Missing visibility</div>
+      <div class="kpi-val" style="color:#c9a83a;font-size:20px">${mV}</div>
+      <div class="kpi-sub">${total>0?Math.round(mV/total*100):0}% of this export</div>
+      <div style="margin-top:6px;font-size:9px;color:rgba(255,255,255,0.2);font-style:italic">With API: % of whole library</div>
+    </div>`;
+
+  // API note banner
+  const apiNote=document.getElementById('apiNote');
+  if(apiNote) apiNote.innerHTML=`
+    <div style="background:rgba(96,150,245,0.06);border:1px solid rgba(96,150,245,0.18);border-radius:8px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6096f5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span style="font-size:11px;color:rgba(255,255,255,0.4)">Statistics shown are based on your CSV export only — not the full Orange Logic library. <strong style="color:#6096f5">With Orange Logic API access</strong> these percentages will reflect the entire photo library in real time.</span>
+    </div>`;
+
+  // Pie chart for missing fields proportion
+  if(window.pieInst)window.pieInst.destroy();
+  const pieCtx=document.getElementById('pieChart');
+  if(pieCtx){
+    window.pieInst=new Chart(pieCtx.getContext('2d'),{
+      type:'doughnut',
+      data:{
+        labels:['Missing Headline','Missing Caption','Missing Credit','Missing Visibility'],
+        datasets:[{
+          data:[mH,mC,mCr,mV],
+          backgroundColor:['rgba(224,92,106,0.8)','rgba(201,168,58,0.8)','rgba(96,150,245,0.8)','rgba(167,139,250,0.8)'],
+          borderColor:['#e05c6a','#c9a83a','#6096f5','#a78bfa'],
+          borderWidth:1,
+          hoverOffset:6
+        }]
+      },
+      options:{
+        responsive:false,
+        cutout:'55%',
+        plugins:{
+          legend:{
+            display:true,
+            position:'right',
+            labels:{color:'rgba(255,255,255,0.55)',font:{size:10},padding:10,boxWidth:10}
+          },
+          tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${ctx.raw} photos (${total>0?Math.round(ctx.raw/total*100):0}%)`}}
+        }
+      }
+    });
+  }
+
+  // Folder list
+  const fc={},fm={};
+  rows.filter(r=>r._bad).forEach(r=>{
+    const f=r['Folder Path']||'Unknown';
+    if(!fc[f]){fc[f]=0;fm[f]=new Set();}
+    fc[f]++;r._m.forEach(m=>fm[f].add(m));
   });
-  document.getElementById('bTbl').innerHTML=html+'</tbody></table>';
+  const sorted=Object.entries(fc).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const maxN=sorted[0]?.[1]||1;
+  const fList=document.getElementById('fList');
+  if(fList) fList.innerHTML=sorted.length?sorted.map(([f,n])=>{
+    const w=Math.round(n/maxN*100);
+    const tags=[...fm[f]].map(m=>`<span class="badge b-r">${m}</span>`).join('');
+    const short=f.length>38?f.slice(0,38)+'…':f;
+    return`<div class="f-row"><div class="f-top"><div class="f-name">${short}</div><div class="f-count">${n}</div></div><div class="f-track"><div class="f-fill" style="width:${w}%"></div></div><div class="f-tags">${tags}</div></div>`;
+  }).join(''):'<div class="empty" style="padding:10px;font-size:11px">Library is clean</div>';
+
+
+
+  // Donut
+  if(donutInst)donutInst.destroy();
+  donutInst=new Chart(document.getElementById('donutChart').getContext('2d'),{
+    type:'doughnut',
+    data:{labels:['Complete','Incomplete'],datasets:[{data:[good||0.01,bad],backgroundColor:['#6096f5','rgba(255,255,255,0.07)'],borderWidth:0}]},
+    options:{responsive:false,cutout:'68%',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${ctx.raw===0.01?0:ctx.raw}`}}}}
+  });
+  document.getElementById('donutPct').textContent=pct+'%';
+  const dLeg=document.getElementById('donutLeg');
+  if(dLeg) dLeg.innerHTML=`
+    <div class="dl-item"><div class="dl-dot" style="background:#6096f5"></div>${pct}% complete (${good})</div>
+    <div class="dl-item"><div class="dl-dot" style="background:rgba(255,255,255,0.12)"></div>${100-pct}% incomplete (${bad})</div>`;
+
+  // Bar chart
+  if(barInst)barInst.destroy();
+  barInst=new Chart(document.getElementById('barChart').getContext('2d'),{
+    type:'bar',
+    data:{labels:['Headline','Caption','Credit','Visibility'],datasets:[{data:[mH,mC,mCr,mV],backgroundColor:['rgba(224,92,106,0.6)','rgba(201,168,58,0.6)','rgba(224,92,106,0.6)','rgba(201,168,58,0.6)'],borderColor:['#e05c6a','#c9a83a','#e05c6a','#c9a83a'],borderWidth:1,borderRadius:5}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.raw} photos missing`}}},scales:{x:{grid:{display:false},ticks:{color:'rgba(255,255,255,0.35)',font:{size:10}}},y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'rgba(255,255,255,0.3)',font:{size:9}},beginAtZero:true}}}
+  });
 }
+
+function renderAll(){renderOverview();renderBatch();renderProgress();}
+
+function renderBatch(){
+  const bad = rows.filter(r=>r._bad);
+  const total = bad.length;
+
+  if(!rows.length){
+    document.getElementById('batchEmpty').style.display='block';
+    document.getElementById('assetList').style.display='none';
+    document.getElementById('bKpi').innerHTML='';
+    return;
+  }
+
+  document.getElementById('batchEmpty').style.display='none';
+  document.getElementById('assetList').style.display='flex';
+  document.getElementById('batchDownloadBar').style.display='flex';
+
+  document.getElementById('bKpi').innerHTML=`
+    <div class="kpi-card" style="border-bottom:2px solid #6096f5"><div class="kpi-lbl">Total assets to review</div><div class="kpi-val" style="color:#7aa3f0;font-size:20px">${total}</div><div class="kpi-sub">Photos with missing metadata</div></div>
+    <div class="kpi-card" style="border-bottom:2px solid #22c97a"><div class="kpi-lbl">Suggestions generated</div><div class="kpi-val" style="color:#22c97a;font-size:20px">${reimport.length}</div><div class="kpi-sub">Ready to review</div></div>
+    <div class="kpi-card" style="border-bottom:2px solid #8b5cf6"><div class="kpi-lbl">Accepted so far</div><div class="kpi-val" style="font-size:20px" id="acceptedCount">0</div><div class="kpi-sub">Click accept on each row</div></div>`;
+
+  document.getElementById('assetCount').textContent = total + ' assets';
+  renderAssetList(bad);
+}
+
+let assetDecisions = {};
+let allBadRows = [];
+
+function renderAssetList(data){
+  allBadRows = data;
+  const html = data.map((r,i) => {
+    const fields = [];
+    if(r._hl) fields.push({label:'Headline', val:r._hl, key:'hl-'+i});
+    if(r._cap) fields.push({label:'Caption', val:r._cap, key:'cap-'+i});
+    if(r._cr) fields.push({label:'Credit', val:r._cr, key:'cr-'+i});
+    if(r._vis) fields.push({label:'Visibility', val:r._vis, key:'vis-'+i});
+
+    const accepted = fields.every(f => assetDecisions[f.key] !== undefined);
+    const short = (r['File Name']||'').length > 30 ? (r['File Name']||'').slice(0,30)+'...' : (r['File Name']||'Unknown');
+    const folder = (r['Folder Path']||'').length > 40 ? (r['Folder Path']||'').slice(0,40)+'...' : (r['Folder Path']||'');
+
+    return `<div id="asset-row-${i}" style="background:linear-gradient(135deg,#141d2e,#18253a);border:1px solid ${accepted?'rgba(34,201,122,0.3)':'rgba(255,255,255,0.07)'};border-radius:10px;overflow:hidden;transition:all 0.2s">
+      <!-- Row header -->
+      <div onclick="toggleAsset(${i})" style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;cursor:pointer" onmouseover="this.style.background='rgba(255,255,255,0.02)'" onmouseout="this.style.background='transparent'">
+        <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
+          <div style="width:8px;height:8px;border-radius:50%;background:${accepted?'#22c97a':'rgba(255,255,255,0.2)'};flex-shrink:0"></div>
+          <div style="min-width:0">
+            <div style="font-size:11px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${short}</div>
+            <div style="font-size:10px;color:rgba(255,255,255,0.35);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${folder}</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+          ${r._m.map(m=>`<span class="badge b-r">${m}</span>`).join('')}
+          ${r['Asset URL']?`<a href="${r['Asset URL']}" target="_blank" onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:3px;padding:4px 10px;border-radius:6px;border:1px solid rgba(96,150,245,0.25);color:#7aa3f0;font-size:10px;text-decoration:none;white-space:nowrap">Open in Orange Logic ↗</a>`:''}
+          <svg id="chevron-${i}" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transition:transform 0.2s;flex-shrink:0" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+      </div>
+      <!-- Expandable suggestions -->
+      <div id="asset-expand-${i}" style="display:none;padding:0 16px 16px;border-top:1px solid rgba(255,255,255,0.05)">
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px">
+          ${fields.map(f=>`
+            <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:10px 12px">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+                <div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:0.07em">${f.label}</div>
+                <div style="display:flex;gap:5px">
+                  <button onclick="acceptOne('${f.key}','${f.val.replace(/'/g,"\'").replace(/"/g,'&quot;')}',${i})" style="background:${assetDecisions[f.key]!==undefined?'rgba(34,201,122,0.2)':'rgba(255,255,255,0.05)'};border:1px solid ${assetDecisions[f.key]!==undefined?'rgba(34,201,122,0.4)':'rgba(255,255,255,0.1)'};border-radius:5px;padding:3px 10px;font-size:9px;color:${assetDecisions[f.key]!==undefined?'#22c97a':'rgba(255,255,255,0.45)'};cursor:pointer;font-weight:600">✓ Accept</button>
+                  <button onclick="toggleEdit('edit-${f.key}')" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:5px;padding:3px 10px;font-size:9px;color:rgba(255,255,255,0.45);cursor:pointer">✏ Change</button>
+                </div>
+              </div>
+              <div style="font-size:11px;color:rgba(255,255,255,0.65)">${assetDecisions[f.key]||f.val}</div>
+              <div id="edit-${f.key}" style="display:none;margin-top:6px">
+                <input type="text" value="${assetDecisions[f.key]||f.val}" onchange="saveOneEdit('${f.key}',this.value,${i})" style="width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(96,150,245,0.3);border-radius:5px;padding:6px 10px;font-size:11px;color:#fff;outline:none;font-family:Inter,sans-serif"/>
+              </div>
+            </div>`).join('')}
+          <button onclick="acceptAll(${i},[${fields.map(f=>`{key:'${f.key}',val:'${f.val.replace(/'/g,"\'")}'}`).join(',')}])" style="background:rgba(34,201,122,0.1);border:1px solid rgba(34,201,122,0.25);border-radius:7px;padding:7px;font-size:11px;color:#22c97a;cursor:pointer;font-weight:600;width:100%">✓ Accept all suggestions for this photo</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('assetList').innerHTML = html || '<div class="empty">No assets to review</div>';
+  updateAcceptedCount();
+}
+
+function toggleAsset(i){
+  const exp = document.getElementById('asset-expand-'+i);
+  const chev = document.getElementById('chevron-'+i);
+  const open = exp.style.display === 'none';
+  exp.style.display = open ? 'block' : 'none';
+  chev.style.transform = open ? 'rotate(180deg)' : 'rotate(0deg)';
+}
+
+function toggleEdit(id){
+  const el = document.getElementById(id);
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+function acceptOne(key, val, rowIdx){
+  assetDecisions[key] = val;
+  updateAcceptedCount();
+  renderAssetList(allBadRows);
+  document.getElementById('asset-expand-'+rowIdx).style.display='block';
+  document.getElementById('chevron-'+rowIdx).style.transform='rotate(180deg)';
+}
+
+function saveOneEdit(key, val, rowIdx){
+  assetDecisions[key] = val;
+  updateAcceptedCount();
+}
+
+function acceptAll(rowIdx, fields){
+  fields.forEach(f => { assetDecisions[f.key] = f.val; });
+  updateAcceptedCount();
+  renderAssetList(allBadRows);
+  document.getElementById('asset-expand-'+rowIdx).style.display='block';
+  document.getElementById('chevron-'+rowIdx).style.transform='rotate(180deg)';
+}
+
+function updateAcceptedCount(){
+  const count = Object.keys(assetDecisions).length;
+  const el = document.getElementById('acceptedCount');
+  const el2 = document.getElementById('batchAcceptCount');
+  if(el) el.textContent = count;
+  if(el2) el2.textContent = count + ' suggestions accepted';
+}
+
+function filterAssets(){
+  const q = document.getElementById('assetSearch').value.toLowerCase();
+  const filtered = allBadRows.filter(r =>
+    (r['File Name']||'').toLowerCase().includes(q) ||
+    (r['Folder Path']||'').toLowerCase().includes(q) ||
+    (r._hl||'').toLowerCase().includes(q) ||
+    (r._cap||'').toLowerCase().includes(q)
+  );
+  document.getElementById('assetCount').textContent = filtered.length + ' assets';
+  renderAssetList(filtered);
+}
+
 
 function renderManual(){
   const bfm=new Set(bGroups().filter(g=>g.n>1).map(g=>(g.folder||'')+'|'+g.missing.join(',')));
@@ -812,40 +1279,202 @@ function renderManual(){
     if(r._cap)sug+=`<div class="sg"><strong>Caption:</strong> ${r._cap} ${srcTag('ai')}</div>`;
     if(r._cr)sug+=`<div class="sg"><strong>Credit:</strong> ${r._cr} ${srcTag(r._crSrc)}</div>`;
     if(r._vis)sug+=`<div class="sg"><strong>Visibility:</strong> ${r._vis} ${srcTag('default')}</div>`;
-    html+=`<tr><td style="font-family:monospace;font-size:9px;color:rgba(255,255,255,0.35)">${r['File Name']||''}</td><td style="color:rgba(255,255,255,0.5)">${r['Folder Path']||''}</td><td>${badges}</td><td>${sug}</td><td><a class="lnk" href="${r['Asset URL']||'#'}" target="_blank">Open ↗</a></td></tr>`;
+    html+=`<tr><td style="font-family:monospace;font-size:9px;color:rgba(255,255,255,0.5)">${r['File Name']||''}</td><td style="color:rgba(255,255,255,0.65)">${r['Folder Path']||''}</td><td>${badges}</td><td>${sug}</td><td><a class="lnk" href="${r['Asset URL']||'#'}" target="_blank">Open ↗</a></td></tr>`;
   });
   document.getElementById('mTbl').innerHTML=html+'</tbody></table>';
 }
 
 function renderProgress(){
   const total=rows.length,bad=rows.filter(r=>r._bad).length,good=total-bad;
-  const groups=bGroups().filter(g=>g.n>1);
-  const bfm=new Set(groups.map(g=>(g.folder||'')+'|'+g.missing.join(',')));
-  const manual=rows.filter(r=>r._bad&&!bfm.has((r['Folder Path']||'')+'|'+r._m.join(','))).length;
+  const pct=total>0?Math.round(good/total*100):0;
   const mH=rows.filter(r=>r._m.includes('Headline')).length;
   const mC=rows.filter(r=>r._m.includes('Caption')).length;
   const mCr=rows.filter(r=>r._m.includes('Credit')).length;
   const mV=rows.filter(r=>r._m.includes('Visibility')).length;
-  function pct(m){return total>0?Math.round((total-m)/total*100):0;}
+
+  // Save snapshot to localStorage
+  const now = new Date();
+  const snapKey = 'imf_snapshots';
+  let snapshots = [];
+  try {
+    const saved = localStorage.getItem(snapKey);
+    if(saved) snapshots = JSON.parse(saved);
+  } catch(e){}
+
+  // Add current snapshot
+  const newSnap = {
+    date: now.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}),
+    time: now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}),
+    total, bad, good, pct, mH, mC, mCr, mV
+  };
+
+  // Only add if different from last snapshot
+  const last = snapshots[snapshots.length-1];
+  if(!last || last.bad !== bad || last.total !== total){
+    snapshots.push(newSnap);
+    if(snapshots.length > 20) snapshots = snapshots.slice(-20);
+    try { localStorage.setItem(snapKey, JSON.stringify(snapshots)); } catch(e){}
+  }
+
+  // Comparison with previous snapshot
+  const prev = snapshots.length > 1 ? snapshots[snapshots.length-2] : null;
+  const fixed = prev ? Math.max(0, prev.bad - bad) : 0;
+  const trend = prev ? (prev.bad > bad ? '↓ Improving' : prev.bad < bad ? '↑ More incomplete' : '→ No change') : 'First upload';
+  const trendColor = prev ? (prev.bad > bad ? '#22c97a' : prev.bad < bad ? '#e87880' : '#c9a83a') : '#6096f5';
+
+  // KPI cards
+  const progKpi = document.getElementById('progKpi');
+  if(progKpi) progKpi.innerHTML=`
+    <div class="kpi-card" style="border-bottom:2px solid #22c97a">
+      <div class="kpi-lbl">Overall complete</div>
+      <div class="kpi-val" style="color:#22c97a;font-size:20px">${pct}%</div>
+      <div class="kpi-sub">${good} of ${total} photos</div>
+    </div>
+    <div class="kpi-card" style="border-bottom:2px solid #e05c6a">
+      <div class="kpi-lbl">Still outstanding</div>
+      <div class="kpi-val" style="color:#e87880;font-size:20px">${bad}</div>
+      <div class="kpi-sub">Need fixing</div>
+    </div>
+    <div class="kpi-card" style="border-bottom:2px solid ${trendColor}">
+      <div class="kpi-lbl">Since last upload</div>
+      <div class="kpi-val" style="color:${trendColor};font-size:${fixed>0?'18px':'14px'}">${fixed>0?fixed+' fixed':trend}</div>
+      <div class="kpi-sub">${prev?'Previously '+prev.bad+' incomplete':'No previous upload yet'}</div>
+    </div>
+    <div class="kpi-card" style="border-bottom:2px solid #6096f5">
+      <div class="kpi-lbl">Uploads tracked</div>
+      <div class="kpi-val" style="color:#7aa3f0;font-size:20px">${snapshots.length}</div>
+      <div class="kpi-sub">Snapshots saved</div>
+    </div>`;
+
+  // Snapshot count
+  const sc = document.getElementById('snapshotCount');
+  if(sc) sc.textContent = snapshots.length + ' snapshot' + (snapshots.length!==1?'s':'') + ' recorded';
+
+  // Timeline chart
+  if(window.timelineInst) window.timelineInst.destroy();
+  const tCtx = document.getElementById('timelineChart');
+  if(tCtx && snapshots.length > 0){
+    window.timelineInst = new Chart(tCtx.getContext('2d'),{
+      type:'line',
+      data:{
+        labels: snapshots.map(s=>s.date+' '+s.time),
+        datasets:[
+          {
+            label:'Incomplete photos',
+            data: snapshots.map(s=>s.bad),
+            borderColor:'#6096f5',
+            backgroundColor:'rgba(96,150,245,0.1)',
+            borderWidth:2.5,
+            pointBackgroundColor:'#6096f5',
+            pointRadius:6,
+            pointHoverRadius:8,
+            fill:true,
+            tension:0.3
+          }
+        ]
+      },
+      options:{
+        responsive:true,
+        maintainAspectRatio:false,
+        plugins:{
+          legend:{labels:{color:'rgba(255,255,255,0.5)',font:{size:10},boxWidth:10}},
+          tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label}: ${ctx.raw} photos`}}
+        },
+        scales:{
+          x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'rgba(255,255,255,0.3)',font:{size:9},maxRotation:30}},
+          y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'rgba(255,255,255,0.3)',font:{size:9}},beginAtZero:true}
+        }
+      }
+    });
+  }
+
+  // Field progress bars
+  function pctField(m){return total>0?Math.round((total-m)/total*100):0;}
   function col(p){return p>=80?'#22c97a':p>=50?'#c9a83a':'#e05c6a';}
   const fields=[{l:'Headline',m:mH},{l:'Caption description',m:mC},{l:'Credit',m:mCr},{l:'Visibility class',m:mV}];
-  document.getElementById('progContent').innerHTML=`
-    <div class="kpi-strip" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px">
-      <div class="kpi-card" style="border-bottom:2px solid #22c97a"><div class="kpi-lbl">Overall complete</div><div class="kpi-val" style="color:#22c97a;font-size:20px">${total>0?Math.round(good/total*100):0}%</div></div>
-      <div class="kpi-card" style="border-bottom:2px solid #e05c6a"><div class="kpi-lbl">Still outstanding</div><div class="kpi-val" style="color:#e87880;font-size:20px">${bad}</div></div>
-      <div class="kpi-card" style="border-bottom:2px solid #6096f5"><div class="kpi-lbl">Batch groups</div><div class="kpi-val" style="color:#7aa3f0;font-size:20px">${groups.length}</div></div>
-      <div class="kpi-card" style="border-bottom:2px solid #c9a83a"><div class="kpi-lbl">Manual review</div><div class="kpi-val" style="color:#c9a83a;font-size:20px">${manual}</div></div>
-    </div>
-    <div class="panel" style="margin-bottom:12px">
-      <div class="shd">Completion by field</div>
-      ${fields.map(f=>{const p=pct(f.m);return`<div class="prog-item"><div class="prog-hd"><span>${f.l}</span><span style="color:${col(p)};font-weight:600">${p}% complete <span style="color:rgba(255,255,255,0.18);font-weight:400">· ${f.m} missing</span></span></div><div class="prog-track"><div class="prog-fill" style="width:${p}%;background:${col(p)}"></div></div></div>`;}).join('')}
-    </div>
-    <div class="panel">
-      <div class="shd">What to do next</div>
-      <div class="pri"><div class="pri-n">1</div><div><strong style="color:#e2e8f0">Batch edit tab</strong> — fix ${groups.length} folder groups using the suggested text. Copy and paste directly into Orange Logic.</div></div>
-      <div class="pri"><div class="pri-n">2</div><div><strong style="color:#e2e8f0">Manual review tab</strong> — fix ${manual} photo${manual!==1?'s':''} requiring individual attention.</div></div>
-      <div class="pri"><div class="pri-n">3</div><div><strong style="color:#e2e8f0">Download re-import CSV</strong> — green button at top right. Upload back to Orange Logic to apply all fixes at once.</div></div>
+  const fp = document.getElementById('fieldProgress');
+  if(fp) fp.innerHTML=fields.map(f=>{
+    const p=pctField(f.m);
+    return`<div class="prog-item">
+      <div class="prog-hd">
+        <span>${f.l}</span>
+        <span style="color:${col(p)};font-weight:600">${p}% complete <span style="color:rgba(255,255,255,0.25);font-weight:400">· ${f.m} still missing</span></span>
+      </div>
+      <div class="prog-track"><div class="prog-fill" style="width:${p}%;background:${col(p)}"></div></div>
     </div>`;
+  }).join('');
+
+  // What to do next
+  const bfm=new Set(bGroups().filter(g=>g.n>1).map(g=>(g.folder||'')+'|'+g.missing.join(',')));
+  const manual=rows.filter(r=>r._bad&&!bfm.has((r['Folder Path']||'')+'|'+r._m.join(','))).length;
+  const ns = document.getElementById('nextSteps');
+  if(ns) ns.innerHTML=`
+    <div class="pri"><div class="pri-n">1</div><div><strong style="color:#e2e8f0">Review suggestions tab</strong> Go through all ${bad} photos with missing metadata. Review the suggested text and accept or change before downloading.</div></div>
+
+    <div class="pri"><div class="pri-n">3</div><div><strong style="color:#e2e8f0">Download re-import CSV</strong> Use the green button at the top. Upload back into Orange Logic to apply all fixes at once.</div></div>
+    <div class="pri"><div class="pri-n">4</div><div><strong style="color:#e2e8f0">Export a fresh CSV next week</strong> Upload it here to track your progress and see how many photos were fixed over time.</div></div>`;
+}
+
+
+function renderHealth(){
+  const total=rows.length,bad=rows.filter(r=>r._bad).length,good=total-bad;
+  const pct=total>0?Math.round(good/total*100):0;
+  const mH=rows.filter(r=>r._m.includes('Headline')).length;
+  const mC=rows.filter(r=>r._m.includes('Caption')).length;
+  const mCr=rows.filter(r=>r._m.includes('Credit')).length;
+  const mV=rows.filter(r=>r._m.includes('Visibility')).length;
+  const bg=bGroups();
+  const bCnt=bg.filter(g=>g.n>1).length;
+
+  document.getElementById('healthKpi').innerHTML=`
+    <div class="kpi-card" style="border-bottom:2px solid #6096f5"><div class="kpi-lbl">Photos in this export</div><div class="kpi-val">${total.toLocaleString()}</div><div class="kpi-sub">Incomplete photos only</div></div>
+    <div class="kpi-card" style="border-bottom:2px solid #22c97a"><div class="kpi-lbl">Complete in export</div><div class="kpi-val" style="color:#22c97a">${good.toLocaleString()}</div><div class="kpi-sub">${pct}% of this export</div></div>
+    <div class="kpi-card" style="border-bottom:2px solid #e05c6a"><div class="kpi-lbl">Still incomplete</div><div class="kpi-val" style="color:#e87880">${bad.toLocaleString()}</div><div class="kpi-sub">${100-pct}% needs attention</div></div>`;
+
+  // Health donut
+  const hCtx=document.getElementById('healthDonut');
+  if(hCtx){
+    if(window.healthDonutInst)window.healthDonutInst.destroy();
+    window.healthDonutInst=new Chart(hCtx.getContext('2d'),{
+      type:'doughnut',
+      data:{labels:['Complete','Incomplete'],datasets:[{data:[good||0.01,bad],backgroundColor:['#22c97a','rgba(255,255,255,0.07)'],borderWidth:0}]},
+      options:{responsive:false,cutout:'68%',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${ctx.raw===0.01?0:ctx.raw}`}}}}
+    });
+    document.getElementById('healthPct').textContent=pct+'%';
+    document.getElementById('healthLeg').innerHTML=`
+      <div class="dl-item"><div class="dl-dot" style="background:#22c97a"></div>${pct}% complete (${good})</div>
+      <div class="dl-item"><div class="dl-dot" style="background:rgba(255,255,255,0.05)"></div>${100-pct}% incomplete (${bad})</div>`;
+  }
+
+  // Health bar
+  const hbCtx=document.getElementById('healthBar');
+  if(hbCtx){
+    if(window.healthBarInst)window.healthBarInst.destroy();
+    window.healthBarInst=new Chart(hbCtx.getContext('2d'),{
+      type:'bar',
+      data:{labels:['Headline','Caption','Credit','Visibility'],datasets:[{data:[mH,mC,mCr,mV],backgroundColor:['rgba(224,92,106,0.6)','rgba(201,168,58,0.6)','rgba(224,92,106,0.6)','rgba(201,168,58,0.6)'],borderColor:['#e05c6a','#c9a83a','#e05c6a','#c9a83a'],borderWidth:1,borderRadius:4}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.raw} photos missing`}}},scales:{x:{grid:{display:false},ticks:{color:'rgba(255,255,255,0.35)',font:{size:10}}},y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'rgba(255,255,255,0.3)',font:{size:9}},beginAtZero:true}}}
+    });
+  }
+
+  // Health folders
+  const fc={},fm={};
+  rows.filter(r=>r._bad).forEach(r=>{
+    const f=r['Folder Path']||'Unknown';
+    if(!fc[f]){fc[f]=0;fm[f]=new Set();}
+    fc[f]++;r._m.forEach(m=>fm[f].add(m));
+  });
+  const sorted=Object.entries(fc).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const maxN=sorted[0]?.[1]||1;
+  const hf=document.getElementById('healthFolders');
+  if(hf){
+    hf.innerHTML=sorted.length?sorted.map(([f,n])=>{
+      const w=Math.round(n/maxN*100);
+      const tags=[...fm[f]].map(m=>`<span class="badge b-r">${m}</span>`).join('');
+      const short=f.length>44?f.slice(0,44)+'…':f;
+      return`<div class="f-row"><div class="f-name">${short}</div><div class="f-bar-row"><div class="f-track"><div class="f-fill" style="width:${w}%;background:linear-gradient(90deg,#6096f5,#4f82e8)">${n}</div></div><div class="f-cnt">${n} photo${n!==1?'s':''}</div></div><div class="f-tags">${tags}</div></div>`;
+    }).join(''):'<div class="empty" style="padding:10px;font-size:11px">No issues found</div>';
+  }
 }
 </script>
 </body>
