@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Metadata Quality Dashboard — IMF Creative Solutions</title>
+<title>Metadata Quality Dashboard IMF Creative Solutions</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js">
 function renderHealth(){
   const total=rows.length,bad=rows.filter(r=>r._bad).length,good=total-bad;
@@ -39,9 +39,10 @@ function renderHealth(){
   const hbCtx=document.getElementById('healthBar');
   if(hbCtx){
     if(window.healthBarInst)window.healthBarInst.destroy();
+    const mPD5=rows.filter(r=>r._m.includes('Production Date')).length;
     window.healthBarInst=new Chart(hbCtx.getContext('2d'),{
       type:'bar',
-      data:{labels:['Headline','Caption','Credit','Visibility'],datasets:[{data:[mH,mC,mCr,mV],backgroundColor:['rgba(224,92,106,0.6)','rgba(201,168,58,0.6)','rgba(224,92,106,0.6)','rgba(201,168,58,0.6)'],borderColor:['#e05c6a','#c9a83a','#e05c6a','#c9a83a'],borderWidth:1,borderRadius:4}]},
+      data:{labels:['Headline','Caption','Credit','Prod. Date'],datasets:[{data:[mH,mC,mCr,mPD5],backgroundColor:['rgba(224,92,106,0.6)','rgba(201,168,58,0.6)','rgba(96,150,245,0.6)','rgba(139,92,246,0.6)'],borderColor:['#e05c6a','#c9a83a','#6096f5','#8b5cf6'],borderWidth:1,borderRadius:4}]},
       options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.raw} photos missing`}}},scales:{x:{grid:{display:false},ticks:{color:'rgba(255,255,255,0.35)',font:{size:10}}},y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'rgba(255,255,255,0.3)',font:{size:9}},beginAtZero:true}}}
     });
   }
@@ -101,9 +102,10 @@ function renderHealth(){
   const hbCtx=document.getElementById('healthBar');
   if(hbCtx){
     if(window.healthBarInst)window.healthBarInst.destroy();
+    const mPD5=rows.filter(r=>r._m.includes('Production Date')).length;
     window.healthBarInst=new Chart(hbCtx.getContext('2d'),{
       type:'bar',
-      data:{labels:['Headline','Caption','Credit','Visibility'],datasets:[{data:[mH,mC,mCr,mV],backgroundColor:['rgba(224,92,106,0.6)','rgba(201,168,58,0.6)','rgba(224,92,106,0.6)','rgba(201,168,58,0.6)'],borderColor:['#e05c6a','#c9a83a','#e05c6a','#c9a83a'],borderWidth:1,borderRadius:4}]},
+      data:{labels:['Headline','Caption','Credit','Prod. Date'],datasets:[{data:[mH,mC,mCr,mPD5],backgroundColor:['rgba(224,92,106,0.6)','rgba(201,168,58,0.6)','rgba(96,150,245,0.6)','rgba(139,92,246,0.6)'],borderColor:['#e05c6a','#c9a83a','#6096f5','#8b5cf6'],borderWidth:1,borderRadius:4}]},
       options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.raw} photos missing`}}},scales:{x:{grid:{display:false},ticks:{color:'rgba(255,255,255,0.35)',font:{size:10}}},y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'rgba(255,255,255,0.3)',font:{size:9}},beginAtZero:true}}}
     });
   }
@@ -173,7 +175,7 @@ body{font-family:'Inter',sans-serif;background:#0f1623;min-height:100vh;color:#f
 .nav-badge{margin-left:auto;background:rgba(96,150,245,0.2);color:#7aa3f0;font-size:9px;font-weight:700;padding:2px 6px;border-radius:10px;display:none}
 .nav-badge.show{display:block}
 
-.sidebar-card{margin:8px 12px;background:linear-gradient(135deg,rgba(96,150,245,0.12),rgba(139,92,246,0.1));border:1px solid rgba(96,150,245,0.12);border-radius:10px;padding:14px;position:relative;overflow:hidden}
+.sidebar-card{margin:8px 12px;background:linear-gradient(135deg,rgba(96,150,245,0.12),rgba(139,92,246,0.1));border:1px solid rgba(96,150,245,0.12);border-radius:10px;padding:14px;position:relative;overflow:visible}
 .sidebar-card::after{content:'';position:absolute;bottom:-20px;right:-20px;width:70px;height:70px;border-radius:50%;background:radial-gradient(circle,rgba(96,150,245,0.15),transparent);pointer-events:none}
 .sc-illus{margin-bottom:10px}
 .sc-title{font-size:11px;font-weight:700;color:#6096f5;margin-bottom:5px;letter-spacing:0.02em}
@@ -400,7 +402,7 @@ tr:hover td{background:rgba(30,58,95,0.03)}
     <circle cx="60" cy="60" r="8" fill="url(#aptGrad)"/>
     <circle cx="60" cy="60" r="4" fill="#6096f5"/>
   </svg>
-  <div class="shutter-msg" id="shutterMsg">Aperture open — analysing your library...</div>
+  <div class="shutter-msg" id="shutterMsg">Aperture open. Analysing your library...</div>
   <div class="shutter-sub" id="shutterSub">Checking fields · Grouping folders · Generating captions</div>
 </div>
 
@@ -450,7 +452,7 @@ tr:hover td{background:rgba(30,58,95,0.03)}
     <!-- Creative card with SVG illustration -->
     <div class="sidebar-card">
       <div class="sc-illus">
-        <svg width="100%" height="56" viewBox="0 0 160 56" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Creative Solutions illustration — camera and film strip">
+        <svg width="100%" height="56" viewBox="0 0 160 56" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Creative Solutions illustration camera and film strip">
           <!-- Film strip -->
           <rect x="4" y="18" width="80" height="22" rx="3" fill="rgba(96,150,245,0.08)" stroke="rgba(96,150,245,0.2)" stroke-width="0.8"/>
           <rect x="8" y="22" width="8" height="14" rx="1.5" fill="rgba(96,150,245,0.15)" stroke="rgba(96,150,245,0.3)" stroke-width="0.6"/>
@@ -484,7 +486,7 @@ tr:hover td{background:rgba(30,58,95,0.03)}
         </svg>
       </div>
       <div class="sc-title">We are creatives</div>
-      <div class="sc-text">Every great photo deserves great metadata. Precision for every pixel — that is our craft.</div>
+      <div class="sc-text">Every great photo deserves great metadata. Precision for every pixel. That is our craft.</div>
     </div>
 
     <div class="sidebar-foot">IMF Creative Solutions · Built with care</div>
@@ -523,7 +525,7 @@ tr:hover td{background:rgba(30,58,95,0.03)}
         <!-- UPLOAD ZONE -->
         <div class="upload-zone" id="uz" onclick="document.getElementById('fi').click()">
           <div class="uz-illus">
-            <div class="cam-stage" aria-label="Animated camera — ready to upload">
+            <div class="cam-stage" aria-label="Animated camera ready to upload">
               <div class="lens-flare"></div>
               <div class="cam-glow-ring"></div>
               <svg class="cam-svg" width="140" height="140" viewBox="0 0 140 140" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">
@@ -615,10 +617,10 @@ tr:hover td{background:rgba(30,58,95,0.03)}
           <!-- API note -->
           <div id="apiNote"></div>
 
-          <div class="shd">Library health — <span id="exportLabel" style="color:#6096f5;text-transform:none;letter-spacing:0;font-weight:400;font-size:10px"></span></div>
+          <div class="shd">Library health <span id="exportLabel" style="color:#6096f5;text-transform:none;letter-spacing:0;font-weight:400;font-size:10px"></span></div>
           <div class="kpi-strip" id="kpi1" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px"></div>
 
-          <div class="shd">Missing fields — how many photos need each field fixed</div>
+          <div class="shd">Missing fields: how many photos need each field fixed</div>
           <div class="kpi-strip" id="kpi2" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px"></div>
 
           <div class="shd">Top folders with most issues</div>
@@ -688,15 +690,15 @@ tr:hover td{background:rgba(30,58,95,0.03)}
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6096f5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;margin-top:2px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
           <div>
             <div style="font-size:12px;font-weight:600;color:#6096f5;margin-bottom:4px">Based on your CSV export only</div>
-            <div style="font-size:11px;color:rgba(255,255,255,0.4);line-height:1.6">The statistics below reflect only the incomplete photos in your last export — not the full Orange Logic library. To see complete library health including all photos, a direct connection to the Orange Logic API is required. Export a fresh CSV regularly to keep these numbers current.</div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.4);line-height:1.6">The statistics below reflect only the incomplete photos in your last export. Not the full Orange Logic library. To see complete library health including all photos, a direct connection to the Orange Logic API is required. Export a fresh CSV regularly to keep these numbers current.</div>
           </div>
         </div>
 
         <div style="background:linear-gradient(135deg,rgba(34,201,122,0.08),rgba(96,150,245,0.08));border:1px solid rgba(34,201,122,0.2);border-radius:10px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:flex-start;gap:12px">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22c97a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;margin-top:2px"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
           <div>
-            <div style="font-size:12px;font-weight:600;color:#22c97a;margin-bottom:4px">Full library health — coming with Orange Logic API</div>
-            <div style="font-size:11px;color:rgba(255,255,255,0.4);line-height:1.6">With a direct API connection the dashboard will show total photos across the entire library, real time completion rates, weekly progress tracking and automatic Monday morning health reports — without any manual CSV exports.</div>
+            <div style="font-size:12px;font-weight:600;color:#22c97a;margin-bottom:4px">Full library health: coming with Orange Logic API</div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.4);line-height:1.6">With a direct API connection the dashboard will show total photos across the entire library, real time completion rates, weekly progress tracking and automatic Monday morning health reports. No manual CSV exports needed.</div>
           </div>
         </div>
 
@@ -773,28 +775,28 @@ tr:hover td{background:rgba(30,58,95,0.03)}
               <div style="width:28px;height:28px;border-radius:50%;background:rgba(96,150,245,0.12);border:1px solid rgba(96,150,245,0.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:700;color:#6096f5">1</div>
               <div>
                 <div style="font-size:12px;font-weight:600;color:#fff;margin-bottom:3px">Search entire library for any person</div>
-                <div style="font-size:11px;color:rgba(255,255,255,0.4)">Type any name — the dashboard searches all captions and tags across the entire Orange Logic library instantly using the API</div>
+                <div style="font-size:11px;color:rgba(255,255,255,0.4)">Type any name. The dashboard searches all captions and tags across the entire Orange Logic library instantly using the API</div>
               </div>
             </div>
             <div style="display:flex;align-items:flex-start;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
               <div style="width:28px;height:28px;border-radius:50%;background:rgba(96,150,245,0.12);border:1px solid rgba(96,150,245,0.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:700;color:#6096f5">2</div>
               <div>
                 <div style="font-size:12px;font-weight:600;color:#fff;margin-bottom:3px">Run Orange Logic facial recognition automatically</div>
-                <div style="font-size:11px;color:rgba(255,255,255,0.4)">Uses Orange Logic's own built in facial recognition on all flagged photos — no external tools needed — everything stays within Orange Logic</div>
+                <div style="font-size:11px;color:rgba(255,255,255,0.4)">Uses Orange Logic's own built in facial recognition on all flagged photos. No external tools needed. Everything stays within Orange Logic</div>
               </div>
             </div>
             <div style="display:flex;align-items:flex-start;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
               <div style="width:28px;height:28px;border-radius:50%;background:rgba(96,150,245,0.12);border:1px solid rgba(96,150,245,0.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:700;color:#6096f5">3</div>
               <div>
                 <div style="font-size:12px;font-weight:600;color:#fff;margin-bottom:3px">Sort results automatically</div>
-                <div style="font-size:11px;color:rgba(255,255,255,0.4)">Confirmed correct — leave as is. Clear non-match — flag for correction. Uncertain — send to human reviewer. Only uncertain photos need human eyes</div>
+                <div style="font-size:11px;color:rgba(255,255,255,0.4)">Confirmed correct: leave as is. Clear non-match: flag for correction. Uncertain: send to human reviewer. Only uncertain photos need human eyes</div>
               </div>
             </div>
             <div style="display:flex;align-items:flex-start;gap:12px;padding:10px 0">
               <div style="width:28px;height:28px;border-radius:50%;background:rgba(96,150,245,0.12);border:1px solid rgba(96,150,245,0.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:700;color:#6096f5">4</div>
               <div>
                 <div style="font-size:12px;font-weight:600;color:#fff;margin-bottom:3px">Apply corrections directly in Orange Logic</div>
-                <div style="font-size:11px;color:rgba(255,255,255,0.4)">Removes the person's name from captions and tags where confirmed incorrect — directly in Orange Logic via API — no CSV re-import needed</div>
+                <div style="font-size:11px;color:rgba(255,255,255,0.4)">Removes the person's name from captions and tags where confirmed incorrect. Applied directly in Orange Logic via API. No CSV re-import needed</div>
               </div>
             </div>
           </div>
@@ -812,7 +814,7 @@ tr:hover td{background:rgba(30,58,95,0.03)}
         <!-- API note -->
         <div style="background:rgba(96,150,245,0.06);border:1px solid rgba(96,150,245,0.18);border-radius:8px;padding:10px 14px;margin-bottom:16px;display:flex;align-items:flex-start;gap:10px">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6096f5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;margin-top:2px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          <span style="font-size:11px;color:rgba(255,255,255,0.4);line-height:1.6">Progress is tracked each time you upload a new CSV. The dashboard saves a snapshot automatically so you can see improvement over time. <strong style="color:#6096f5">With the Orange Logic API</strong> this will update every Monday morning automatically — no manual exports needed.</span>
+          <span style="font-size:11px;color:rgba(255,255,255,0.4);line-height:1.6">Progress is tracked each time you upload a new CSV. The dashboard saves a snapshot automatically so you can see improvement over time. <strong style="color:#6096f5">With the Orange Logic API</strong> this will update every Monday morning automatically. No manual exports needed.</span>
         </div>
 
         <!-- Progress comparison cards -->
@@ -821,7 +823,7 @@ tr:hover td{background:rgba(30,58,95,0.03)}
         <!-- Timeline chart -->
         <div class="panel" style="margin-bottom:14px">
           <div class="panel-hd">
-            <div class="panel-title">Incomplete photos per upload — should trend downward over time</div>
+            <div class="panel-title">Incomplete photos per upload. Should trend downward over time.</div>
             <div style="font-size:10px;color:rgba(255,255,255,0.25)" id="snapshotCount">0 snapshots recorded</div>
           </div>
           <div style="position:relative;height:160px">
@@ -832,7 +834,7 @@ tr:hover td{background:rgba(30,58,95,0.03)}
 
         <!-- Field progress -->
         <div class="panel" style="margin-bottom:14px">
-          <div class="panel-hd"><div class="panel-title">Completion by field — this upload</div></div>
+          <div class="panel-hd"><div class="panel-title">Completion by field for this upload</div></div>
           <div id="fieldProgress"></div>
         </div>
 
@@ -911,7 +913,7 @@ function showShutter(msg,sub,duration,cb){
 function loadCSV(e){
   const file=e.target.files[0];if(!file)return;
   showShutter(
-    'Aperture open — analysing your library...',
+    'Aperture open. Analysing your library...',
     'Checking fields · Grouping folders · Generating captions',
     1800,
     ()=>{
@@ -977,7 +979,7 @@ rows=rows.map(r=>{
               
               // Combine event + cleaned caption
               if(_event2&&_cleanCap){
-                const _combo=_event2+' — '+_cleanCap;
+                const _combo=_event2+': '+_cleanCap;
                 r._hl=_combo.length>250?_combo.slice(0,250)+'...':_combo;
               } else if(_event2){
                 r._hl=_event2;
@@ -1087,6 +1089,7 @@ function renderOverview(){
     </div>`).join('');
 
   // Missing fields breakdown cards
+  const mPD=rows.filter(r=>r._m.includes('Production Date')).length;
   const kpi2=document.getElementById('kpi2');
   if(kpi2) kpi2.innerHTML=`
     <div class="kpi-card" style="border-bottom:2px solid #e05c6a">
@@ -1101,17 +1104,17 @@ function renderOverview(){
       <div class="kpi-sub">${total>0?Math.round(mC/total*100):0}% of this export</div>
       <div style="margin-top:6px;font-size:9px;color:rgba(255,255,255,0.2);font-style:italic">With API: % of whole library</div>
     </div>
-    <div class="kpi-card" style="border-bottom:2px solid #e05c6a">
+    <div class="kpi-card" style="border-bottom:2px solid #6096f5">
       <div class="kpi-lbl">Missing credit</div>
-      <div class="kpi-val" style="color:#e87880;font-size:20px">${mCr}</div>
+      <div class="kpi-val" style="color:#7aa3f0;font-size:20px">${mCr}</div>
       <div class="kpi-sub">${total>0?Math.round(mCr/total*100):0}% of this export</div>
       <div style="margin-top:6px;font-size:9px;color:rgba(255,255,255,0.2);font-style:italic">With API: % of whole library</div>
     </div>
-    <div class="kpi-card" style="border-bottom:2px solid #22c97a">
-      <div class="kpi-lbl">Visibility status</div>
-      <div class="kpi-val" style="color:#22c97a;font-size:14px">Auto-set</div>
-      <div class="kpi-sub">Always set to Internal Use Only</div>
-      <div style="margin-top:6px;font-size:9px;color:rgba(255,255,255,0.2);font-style:italic">Not a metadata field — a status</div>
+    <div class="kpi-card" style="border-bottom:2px solid #8b5cf6">
+      <div class="kpi-lbl">Missing production date</div>
+      <div class="kpi-val" style="color:#a78bfa;font-size:20px">${mPD}</div>
+      <div class="kpi-sub">${total>0?Math.round(mPD/total*100):0}% of this export</div>
+      <div style="margin-top:6px;font-size:9px;color:rgba(255,255,255,0.2);font-style:italic">With API: % of whole library</div>
     </div>`;
 
   // API note banner
@@ -1119,21 +1122,22 @@ function renderOverview(){
   if(apiNote) apiNote.innerHTML=`
     <div style="background:rgba(96,150,245,0.06);border:1px solid rgba(96,150,245,0.18);border-radius:8px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6096f5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-      <span style="font-size:11px;color:rgba(255,255,255,0.4)">Statistics shown are based on your CSV export only — not the full Orange Logic library. <strong style="color:#6096f5">With Orange Logic API access</strong> these percentages will reflect the entire photo library in real time.</span>
+      <span style="font-size:11px;color:rgba(255,255,255,0.4)">Statistics shown are based on your CSV export only. Not the full Orange Logic library. <strong style="color:#6096f5">With Orange Logic API access</strong> these percentages will reflect the entire photo library in real time.</span>
     </div>`;
 
   // Pie chart for missing fields proportion
   if(window.pieInst)window.pieInst.destroy();
   const pieCtx=document.getElementById('pieChart');
   if(pieCtx){
+    const mPD3=rows.filter(r=>r._m.includes('Production Date')).length;
     window.pieInst=new Chart(pieCtx.getContext('2d'),{
       type:'doughnut',
       data:{
-        labels:['Missing Headline','Missing Caption','Missing Credit','Missing Visibility'],
+        labels:['Missing Headline','Missing Caption','Missing Credit','Missing Prod. Date'],
         datasets:[{
-          data:[mH,mC,mCr,mV],
-          backgroundColor:['rgba(224,92,106,0.8)','rgba(201,168,58,0.8)','rgba(96,150,245,0.8)','rgba(167,139,250,0.8)'],
-          borderColor:['#e05c6a','#c9a83a','#6096f5','#a78bfa'],
+          data:[mH,mC,mCr,mPD3],
+          backgroundColor:['rgba(224,92,106,0.8)','rgba(201,168,58,0.8)','rgba(96,150,245,0.8)','rgba(139,92,246,0.8)'],
+          borderColor:['#e05c6a','#c9a83a','#6096f5','#8b5cf6'],
           borderWidth:1,
           hoverOffset:6
         }]
@@ -1187,9 +1191,10 @@ function renderOverview(){
 
   // Bar chart
   if(barInst)barInst.destroy();
+  const mPD2=rows.filter(r=>r._m.includes('Production Date')).length;
   barInst=new Chart(document.getElementById('barChart').getContext('2d'),{
     type:'bar',
-    data:{labels:['Headline','Caption','Credit','Visibility'],datasets:[{data:[mH,mC,mCr,mV],backgroundColor:['rgba(224,92,106,0.6)','rgba(201,168,58,0.6)','rgba(224,92,106,0.6)','rgba(201,168,58,0.6)'],borderColor:['#e05c6a','#c9a83a','#e05c6a','#c9a83a'],borderWidth:1,borderRadius:5}]},
+    data:{labels:['Headline','Caption','Credit','Prod. Date'],datasets:[{data:[mH,mC,mCr,mPD2],backgroundColor:['rgba(224,92,106,0.6)','rgba(201,168,58,0.6)','rgba(96,150,245,0.6)','rgba(139,92,246,0.6)'],borderColor:['#e05c6a','#c9a83a','#6096f5','#8b5cf6'],borderWidth:1,borderRadius:5}]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.raw} photos missing`}}},scales:{x:{grid:{display:false},ticks:{color:'rgba(255,255,255,0.35)',font:{size:10}}},y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'rgba(255,255,255,0.3)',font:{size:9}},beginAtZero:true}}}
   });
 }
@@ -1230,7 +1235,33 @@ function renderAssetList(data){
     if(r._hl) fields.push({label:'Headline', val:r._hl, key:'hl-'+i});
     if(r._cap) fields.push({label:'Caption', val:r._cap, key:'cap-'+i});
     if(r._cr) fields.push({label:'Credit', val:r._cr, key:'cr-'+i});
-    if(r._vis) fields.push({label:'Visibility', val:r._vis, key:'vis-'+i});
+    // Show Production Date for reference — convert Excel serial if needed
+    let _pdRaw=String(r['Production Date']||'').trim();
+    let _pdFormatted='';
+    if(_pdRaw){
+      // Check if it is an Excel serial number (pure number)
+      const _pdNum=parseFloat(_pdRaw);
+      if(!isNaN(_pdNum)&&_pdRaw===String(_pdNum)){
+        // Convert Excel serial to date
+        // Excel serial 1 = Jan 1 1900, but Excel incorrectly treats 1900 as leap year
+        const _excelEpoch=new Date(1899,11,30);
+        const _d=new Date(_excelEpoch.getTime()+_pdNum*86400000);
+        _pdFormatted=_d.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+      } else {
+        // Try parsing as normal date string
+        try{
+          const _d=new Date(_pdRaw);
+          if(!isNaN(_d.getTime())){
+            _pdFormatted=_d.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+          } else {
+            _pdFormatted=_pdRaw;
+          }
+        }catch(e){_pdFormatted=_pdRaw;}
+      }
+    }
+    if(_pdFormatted) fields.push({label:'Production Date', val:_pdFormatted, key:'pd-'+i, readonly:true});
+    // Visibility is always set to Internal Use Only in the CSV automatically
+    // No need to show it here for review
 
     const accepted = fields.every(f => assetDecisions[f.key] !== undefined);
     const short = (r['File Name']||'').length > 30 ? (r['File Name']||'').slice(0,30)+'...' : (r['File Name']||'Unknown');
@@ -1247,7 +1278,7 @@ function renderAssetList(data){
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
-          ${r._m.map(m=>`<span class="badge b-r">${m}</span>`).join('')}${r._visNeedsChange?'<span class="badge" style="background:rgba(201,168,58,0.15);color:#c9a83a;border:1px solid rgba(201,168,58,0.3)">Visibility</span>':''}
+          ${r._m.map(m=>`<span class="badge b-r">${m}</span>`).join('')}
           ${r['Asset URL']?`<a href="${r['Asset URL']}" target="_blank" onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:3px;padding:4px 10px;border-radius:6px;border:1px solid rgba(96,150,245,0.25);color:#7aa3f0;font-size:10px;text-decoration:none;white-space:nowrap">Open in Orange Logic ↗</a>`:''}
           <svg id="chevron-${i}" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transition:transform 0.2s;flex-shrink:0" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
         </div>
@@ -1266,7 +1297,13 @@ function renderAssetList(data){
               </div>
               <div style="font-size:11px;color:rgba(255,255,255,0.65)">${assetDecisions[f.key]||f.val}</div>
               <div id="edit-${f.key}" style="display:none;margin-top:6px">
-                <input type="text" value="${assetDecisions[f.key]||f.val}" onchange="saveOneEdit('${f.key}',this.value,${i})" style="width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(96,150,245,0.3);border-radius:5px;padding:6px 10px;font-size:11px;color:#fff;outline:none;font-family:Inter,sans-serif"/>
+                <div style="display:flex;gap:6px;align-items:center">
+                  <input type="text" id="input-${f.key}" value="${assetDecisions[f.key]||f.val}" 
+                    onkeydown="if(event.key==='Enter'){saveOneEdit('${f.key}',this.value,${i});document.getElementById('edit-${f.key}').style.display='none';}" 
+                    style="flex:1;background:rgba(255,255,255,0.06);border:1px solid rgba(96,150,245,0.3);border-radius:5px;padding:6px 10px;font-size:11px;color:#fff;outline:none;font-family:Inter,sans-serif"/>
+                  <button onclick="saveOneEdit('${f.key}',document.getElementById('input-${f.key}').value,${i});document.getElementById('edit-${f.key}').style.display='none';" 
+                    style="background:#6096f5;border:none;border-radius:5px;padding:6px 12px;font-size:11px;color:#fff;font-weight:600;cursor:pointer;white-space:nowrap">Save</button>
+                </div>
               </div>
             </div>`).join('')}
           <button onclick="acceptAll(${i},[${fields.map(f=>`{key:'${f.key}',val:'${f.val.replace(/'/g,"\'")}'}`).join(',')}])" style="background:rgba(34,201,122,0.1);border:1px solid rgba(34,201,122,0.25);border-radius:7px;padding:7px;font-size:11px;color:#22c97a;cursor:pointer;font-weight:600;width:100%">✓ Accept all suggestions for this photo</button>
@@ -1303,6 +1340,20 @@ function acceptOne(key, val, rowIdx){
 function saveOneEdit(key, val, rowIdx){
   assetDecisions[key] = val;
   updateAcceptedCount();
+  // Update the display text immediately without full re-render
+  const displayEl = document.getElementById('display-'+key);
+  if(displayEl) displayEl.textContent = val;
+  // Re-render to update button colours
+  const expandEl = document.getElementById('asset-expand-'+rowIdx);
+  const wasOpen = expandEl && expandEl.style.display !== 'none';
+  renderAssetList(allBadRows);
+  // Keep the row open
+  if(wasOpen){
+    const exp = document.getElementById('asset-expand-'+rowIdx);
+    const chev = document.getElementById('chevron-'+rowIdx);
+    if(exp) exp.style.display = 'block';
+    if(chev) chev.style.transform = 'rotate(180deg)';
+  }
 }
 
 function acceptAll(rowIdx, fields){
@@ -1337,7 +1388,7 @@ function filterAssets(){
 function renderManual(){
   const bfm=new Set(bGroups().filter(g=>g.n>1).map(g=>(g.folder||'')+'|'+g.missing.join(',')));
   const manual=rows.filter(r=>r._bad&&!bfm.has((r['Folder Path']||'')+'|'+r._m.join(',')));
-  if(!manual.length){document.getElementById('mTbl').innerHTML='<div class="empty">No individual review needed — great work!</div>';return;}
+  if(!manual.length){document.getElementById('mTbl').innerHTML='<div class="empty">No individual review needed. Great work!</div>';return;}
   let html=`<table><thead><tr><th>File name</th><th>Folder</th><th>Missing</th><th>Suggested text</th><th>Open</th></tr></thead><tbody>`;
   manual.forEach(r=>{
     const badges=r._m.map(m=>`<span class="badge b-r">${m}</span>`).join(' ');
@@ -1458,7 +1509,8 @@ function renderProgress(){
   // Field progress bars
   function pctField(m){return total>0?Math.round((total-m)/total*100):0;}
   function col(p){return p>=80?'#22c97a':p>=50?'#c9a83a':'#e05c6a';}
-  const fields=[{l:'Headline',m:mH},{l:'Caption description',m:mC},{l:'Credit',m:mCr},{l:'Visibility class',m:mV}];
+  const mPD4=rows.filter(r=>r._m.includes('Production Date')).length;
+  const fields=[{l:'Headline',m:mH},{l:'Caption description',m:mC},{l:'Credit',m:mCr},{l:'Production date',m:mPD4}];
   const fp = document.getElementById('fieldProgress');
   if(fp) fp.innerHTML=fields.map(f=>{
     const p=pctField(f.m);
@@ -1517,9 +1569,10 @@ function renderHealth(){
   const hbCtx=document.getElementById('healthBar');
   if(hbCtx){
     if(window.healthBarInst)window.healthBarInst.destroy();
+    const mPD5=rows.filter(r=>r._m.includes('Production Date')).length;
     window.healthBarInst=new Chart(hbCtx.getContext('2d'),{
       type:'bar',
-      data:{labels:['Headline','Caption','Credit','Visibility'],datasets:[{data:[mH,mC,mCr,mV],backgroundColor:['rgba(224,92,106,0.6)','rgba(201,168,58,0.6)','rgba(224,92,106,0.6)','rgba(201,168,58,0.6)'],borderColor:['#e05c6a','#c9a83a','#e05c6a','#c9a83a'],borderWidth:1,borderRadius:4}]},
+      data:{labels:['Headline','Caption','Credit','Prod. Date'],datasets:[{data:[mH,mC,mCr,mPD5],backgroundColor:['rgba(224,92,106,0.6)','rgba(201,168,58,0.6)','rgba(96,150,245,0.6)','rgba(139,92,246,0.6)'],borderColor:['#e05c6a','#c9a83a','#6096f5','#8b5cf6'],borderWidth:1,borderRadius:4}]},
       options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.raw} photos missing`}}},scales:{x:{grid:{display:false},ticks:{color:'rgba(255,255,255,0.35)',font:{size:10}}},y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'rgba(255,255,255,0.3)',font:{size:9}},beginAtZero:true}}}
     });
   }
