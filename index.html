@@ -585,8 +585,8 @@ tr:hover td{background:rgba(30,58,95,0.03)}
             <div class="wf-step active">
               <div class="wf-circle"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg></div>
               <div class="wf-num">3. Analysis</div>
-              <div class="wf-label">AI Analysis</div>
-              <div class="wf-desc">Generates insights</div>
+              <div class="wf-label">Analysis</div>
+              <div class="wf-desc">Generates suggestions</div>
             </div>
             <div class="wf-step">
               <div class="wf-circle"><svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div>
@@ -861,16 +861,33 @@ function nav(id,el){
 function isEmpty(v){return!v||['','nan','none'].includes(String(v).trim().toLowerCase())}
 const SYS=['admin','administrator','system','nan','none','','imf','unknown'];
 function realName(v){return!isEmpty(v)&&!SYS.includes(String(v).trim().toLowerCase())}
-function fmtDate(d){try{const dt=new Date(d);if(!isNaN(dt))return dt.toLocaleDateString('en-US',{month:'long',year:'numeric'});}catch(e){}return String(d);}
+function fmtDate(d){
+  if(!d||String(d).trim()==='')return '';
+  try{
+    const dt=new Date(d);
+    if(!isNaN(dt.getTime()))return dt.toLocaleDateString('en-US',{month:'long',year:'numeric'});
+  }catch(e){}
+  return '';
+}
 function makeCap(folder,date){
-  const f=String(folder||'').trim(),dt=fmtDate(date);
+  const f=String(folder||'').trim();
+  const dt=date?fmtDate(date):'';
+  // Use last meaningful folder part as event name
   const p=f.split('/').map(x=>x.trim()).filter(Boolean);
-  return p[1]?`${p[0]}, ${dt}. ${p[1]} session at the International Monetary Fund.`:`${p[0]||f}, ${dt}. International Monetary Fund.`;
+  const event=p[p.length-1]||p[0]||'';
+  // Build caption with or without date
+  if(event&&dt) return `${event}. International Monetary Fund, ${dt}.`;
+  if(event&&!dt) return `${event}. International Monetary Fund.`;
+  if(!event&&dt) return `International Monetary Fund, ${dt}.`;
+  return 'Fill in manually';
 }
 function makeCr(row){
-  const c=String(row['Created By']||'').trim(),m=String(row['Last Modified By']||'').trim();
-  if(realName(c))return{t:c,s:'creator'};
-  if(realName(m))return{t:m,s:'creator'};
+  // Use Created by (real name) not Created By (email)
+  const c=String(row['Created by']||row['Created By']||'').trim();
+  const m=String(row['Last Modified By']||'').trim();
+  // Skip email addresses
+  if(realName(c)&&!c.includes('@'))return{t:c,s:'creator'};
+  if(realName(m)&&!m.includes('@'))return{t:m,s:'creator'};
   return{t:'IMF Photo',s:'default'};
 }
 function getMissing(row){
@@ -905,21 +922,71 @@ function loadCSV(e){
           const data=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:''});
           rows=data.map(row=>{
             const r={};
-            Object.keys(row).forEach(k=>{
-              const c=k.trim();
-              if(c.startsWith('Caption Description'))r['Caption Description']=row[k];
-              else if(c.startsWith('Folder path'))r['Folder Path']=row[k];
-              else if(c.startsWith('Link to view'))r['Asset URL']=row[k];
-              else if(c.startsWith('Production Date'))r['Production Date']=row[k];
-              else r[c]=row[k];
-            });
-            if(!r['File Name']&&r['Original File Name'])r['File Name']=r['Original File Name'];
+            // Read every column directly by exact name
+            r['File Name']=String(row['Original file name']||row['Original File Name']||'').trim();
+            r['Caption Description']=String(row['Caption Description']||row['Caption Description / Data']||'').trim();
+            r['Folder Path']=String(row['Folder path (link)']||row['Folder Path']||row['Folder path']||'').trim();
+            r['Asset URL']=String(row['Link to open order in Cortex']||row['Link to view parent in Cortex (URL Only)']||'').trim();
+            r['Raw Identifier']=String(row['Raw Identifier ']||row['Raw Identifier']||row['Unique identifier']||'').trim();
+            r['Production Date']=String(row['Production Date']||'').trim();
+            r['Visibility Class']=String(row['Visibility class']||row['Visibility Class']||'').trim();
+            r['Created by']=String(row['Created by']||'').trim();
+            r['Created By email']=String(row['Created By']||'').trim();
+            r['Last Modified By']=String(row['Last Modified By']||'').trim();
+            r['Credit']=String(row['Credit']||'').trim();
+            r['Headline']=String(row['Headline']||'').trim();
+            // Copy remaining columns
+            Object.keys(row).forEach(k=>{if(r[k]===undefined)r[k]=row[k];});
+            // Fallback asset URL from Raw Identifier
+            if(!r['Asset URL']&&r['Raw Identifier']){
+              r['Asset URL']='https://digitalmedia.imf.org/asset-management/'+r['Raw Identifier'];
+            }
             return r;
           });
-          rows=rows.map(r=>{
-            r._m=getMissing(r);r._bad=r._m.length>0;
-            r._hl=r._cap=r._cr=r._vis='';r._crSrc='';
-            if(r._m.includes('Headline'))r._hl=String(r['Folder Path']||'').trim()||'Fill manually';
+          
+rows=rows.map(r=>{
+            r._m=getMissing(r);
+            // Also flag as bad if visibility is still Awaiting Mandatory Metadata
+            const _vs=String(r['Visibility Class']||'').trim();
+            const _visNeedsChange=_vs.toLowerCase().includes('awaiting')||_vs==='';
+            r._bad=r._m.length>0||_visNeedsChange;
+            r._hl=r._cap=r._cr='';r._vis='Internal Use Only';r._crSrc='';
+            // Always set visibility suggestion
+            r._visNeedsChange=_visNeedsChange;
+            if(r._m.includes('Headline')){
+              // SMART HEADLINE: combine event from folder + cleaned caption
+              const _cap2=String(r['Caption Description']||'').trim();
+              const _fp2=String(r['Folder Path']||'').trim();
+              
+              // Get event from folder — skip filename parts containing dots
+              const _fparts2=_fp2.split('/').map(x=>x.trim()).filter(Boolean);
+              const _nonFile=_fparts2.filter(p=>!p.includes('.'));
+              const _event2=_nonFile.length>0?_nonFile[_nonFile.length-1]:(_fparts2.length>=2?_fparts2[_fparts2.length-2]:_fparts2[0]||'');
+              
+              // Clean caption — remove dates and credit info
+              let _cleanCap=_cap2
+                .replace(/Photo\s+by\b[^,.]*/gi,'')
+                .replace(/Credit\s*:\s*[^,.]*/gi,'')
+                .replace(/IMF\s+Photo\/[^,.]*/gi,'')
+                .replace(/(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s*\d{4}/gi,'')
+                .replace(/\d{1,2}\s+(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}/gi,'')
+                .replace(/\b\d{4}\b/g,'')
+                .replace(/\s{2,}/g,' ')
+                .replace(/^[,;.\s]+|[,;.\s]+$/g,'')
+                .trim();
+              
+              // Combine event + cleaned caption
+              if(_event2&&_cleanCap){
+                const _combo=_event2+' — '+_cleanCap;
+                r._hl=_combo.length>250?_combo.slice(0,250)+'...':_combo;
+              } else if(_event2){
+                r._hl=_event2;
+              } else if(_cleanCap){
+                r._hl=_cleanCap.length>250?_cleanCap.slice(0,250)+'...':_cleanCap;
+              } else {
+                r._hl='Fill in manually';
+              }
+            }
             if(r._m.includes('Caption'))r._cap=makeCap(r['Folder Path'],r['Production Date']);
             if(r._m.includes('Credit')){const cr=makeCr(r);r._cr=cr.t;r._crSrc=cr.s;}
             if(r._m.includes('Visibility'))r._vis='Internal Use Only';
@@ -1040,11 +1107,11 @@ function renderOverview(){
       <div class="kpi-sub">${total>0?Math.round(mCr/total*100):0}% of this export</div>
       <div style="margin-top:6px;font-size:9px;color:rgba(255,255,255,0.2);font-style:italic">With API: % of whole library</div>
     </div>
-    <div class="kpi-card" style="border-bottom:2px solid #c9a83a">
-      <div class="kpi-lbl">Missing visibility</div>
-      <div class="kpi-val" style="color:#c9a83a;font-size:20px">${mV}</div>
-      <div class="kpi-sub">${total>0?Math.round(mV/total*100):0}% of this export</div>
-      <div style="margin-top:6px;font-size:9px;color:rgba(255,255,255,0.2);font-style:italic">With API: % of whole library</div>
+    <div class="kpi-card" style="border-bottom:2px solid #22c97a">
+      <div class="kpi-lbl">Visibility status</div>
+      <div class="kpi-val" style="color:#22c97a;font-size:14px">Auto-set</div>
+      <div class="kpi-sub">Always set to Internal Use Only</div>
+      <div style="margin-top:6px;font-size:9px;color:rgba(255,255,255,0.2);font-style:italic">Not a metadata field — a status</div>
     </div>`;
 
   // API note banner
@@ -1180,7 +1247,7 @@ function renderAssetList(data){
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
-          ${r._m.map(m=>`<span class="badge b-r">${m}</span>`).join('')}
+          ${r._m.map(m=>`<span class="badge b-r">${m}</span>`).join('')}${r._visNeedsChange?'<span class="badge" style="background:rgba(201,168,58,0.15);color:#c9a83a;border:1px solid rgba(201,168,58,0.3)">Visibility</span>':''}
           ${r['Asset URL']?`<a href="${r['Asset URL']}" target="_blank" onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:3px;padding:4px 10px;border-radius:6px;border:1px solid rgba(96,150,245,0.25);color:#7aa3f0;font-size:10px;text-decoration:none;white-space:nowrap">Open in Orange Logic ↗</a>`:''}
           <svg id="chevron-${i}" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transition:transform 0.2s;flex-shrink:0" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
         </div>
