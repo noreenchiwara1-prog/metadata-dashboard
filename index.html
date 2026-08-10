@@ -1018,7 +1018,7 @@ rows=rows.map(r=>{
             if(r._m.includes('Visibility'))r._vis='Internal Use Only';
             return r;
           });
-          reimport=rows.filter(r=>r._bad).map(r=>({'File Name':r['File Name']||'','Folder Path':r['Folder Path']||'','Headline':r._hl||r.Headline||'','Caption Description':r._cap||r['Caption Description']||'','Credit':r._cr||r.Credit||'','Visibility Class':r._vis||r['Visibility Class']||'','Production Date':r['Production Date']||'','Asset URL':r['Asset URL']||''}));
+          reimport=rows.filter(r=>r._bad).map(r=>({'File Name':r['File Name']||'','Folder Path':r['Folder Path']||'','Headline':r._hl||r.Headline||'','Caption Description':r._cap||r['Caption Description']||'','Credit':r._cr||r.Credit||'','Visibility Class':r._vis||r['Visibility Class']||'','Production Date':fmtDateISO(r['Production Date']||''),'Asset URL':r['Asset URL']||''}));
           const now=new Date();
           const bad=rows.filter(r=>r._bad).length;
           document.getElementById('ts').textContent='Updated '+now.toLocaleTimeString();
