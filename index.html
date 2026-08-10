@@ -873,11 +873,47 @@ const SYS=['admin','administrator','system','nan','none','','imf','unknown'];
 function realName(v){return!isEmpty(v)&&!SYS.includes(String(v).trim().toLowerCase())}
 function fmtDate(d){
   if(!d||String(d).trim()==='')return '';
+  const s=String(d).trim();
+  // If already in MM/DD/YYYY format return as is
+  if(/^\d{1,2}\/\d{1,2}\/\d{4}/.test(s))return s;
+  // Check if Excel serial number (pure decimal number)
+  const n=parseFloat(s);
+  if(!isNaN(n)&&/^\d+\.?\d*$/.test(s)){
+    const epoch=new Date(1899,11,30);
+    const dt=new Date(epoch.getTime()+n*86400000);
+    if(!isNaN(dt.getTime()))
+      return dt.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+  }
   try{
-    const dt=new Date(d);
-    if(!isNaN(dt.getTime()))return dt.toLocaleDateString('en-US',{month:'long',year:'numeric'});
+    const dt=new Date(s);
+    if(!isNaN(dt.getTime()))
+      return dt.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
   }catch(e){}
-  return '';
+  return s;
+}
+
+function fmtDateISO(d){
+  // Returns date in same format as Orange Logic exports it
+  if(!d||String(d).trim()==='')return '';
+  const s=String(d).trim();
+  // If already in MM/DD/YYYY HH:MM:SS format return as is
+  if(/^\d{1,2}\/\d{1,2}\/\d{4}/.test(s))return s;
+  // Convert Excel serial number
+  const n=parseFloat(s);
+  if(!isNaN(n)&&/^\d+\.?\d*$/.test(s)){
+    const epoch=new Date(1899,11,30);
+    const dt=new Date(epoch.getTime()+n*86400000);
+    if(!isNaN(dt.getTime())){
+      const mm=String(dt.getMonth()+1).padStart(2,'0');
+      const dd=String(dt.getDate()).padStart(2,'0');
+      const yyyy=dt.getFullYear();
+      const hh=String(dt.getHours()).padStart(2,'0');
+      const min=String(dt.getMinutes()).padStart(2,'0');
+      const sec=String(dt.getSeconds()).padStart(2,'0');
+      return `${mm}/${dd}/${yyyy} ${hh}:${min}:${sec}`;
+    }
+  }
+  return s;
 }
 function makeCap(folder,date){
   const f=String(folder||'').trim();
@@ -1227,7 +1263,18 @@ function renderAssetList(data){
     if(r._hl) fields.push({label:'Headline', val:r._hl, key:'hl-'+i});
     if(r._cap) fields.push({label:'Caption', val:r._cap, key:'cap-'+i});
     if(r._cr) fields.push({label:'Credit', val:r._cr, key:'cr-'+i});
-    // Production Date removed from review — already visible in caption
+    // Show Production Date
+    // If has value - show as readonly reference
+    // If empty - show as editable field for manual entry
+    const _pdRaw2=String(r['Production Date']||'').trim();
+    const _pdFormatted2=_pdRaw2?fmtDateISO(_pdRaw2):'';
+    if(_pdFormatted2){
+      // Has date - show as readonly reference
+      fields.push({label:'Production Date', val:_pdFormatted2, key:'pd-'+i, readonly:true});
+    } else {
+      // No date - show as editable field
+      fields.push({label:'Production Date (missing - please enter)', val:'', key:'pd-'+i, readonly:false, placeholder:'MM/DD/YYYY HH:MM:SS'});
+    }
     // Visibility is always set to Internal Use Only in the CSV automatically
     // No need to show it here for review
 
@@ -1270,10 +1317,10 @@ function renderAssetList(data){
                   <button onclick="toggleEdit('edit-${f.key}')" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:5px;padding:3px 10px;font-size:9px;color:rgba(255,255,255,0.45);cursor:pointer">✏ Change</button>
                 </div>
               </div>
-              <div style="font-size:11px;color:rgba(255,255,255,0.65)">${assetDecisions[f.key]||f.val}</div>
-              <div id="edit-${f.key}" style="display:none;margin-top:6px">
+              <div style="font-size:11px;color:${!f.val&&!assetDecisions[f.key]?'rgba(255,100,100,0.6)':'rgba(255,255,255,0.65)'}">${assetDecisions[f.key]||f.val||'Not available - please enter manually'}</div>
+              <div id="edit-${f.key}" style="display:${!f.val&&!assetDecisions[f.key]?'block':'none'};margin-top:6px">
                 <div style="display:flex;gap:6px;align-items:center">
-                  <input type="text" id="input-${f.key}" value="${assetDecisions[f.key]||f.val}" 
+                  <input type="text" id="input-${f.key}" value="${assetDecisions[f.key]||f.val}" placeholder="${f.placeholder||''}"
                     onkeydown="if(event.key==='Enter'){saveOneEdit('${f.key}',this.value,${i});document.getElementById('edit-${f.key}').style.display='none';}" 
                     style="flex:1;background:rgba(255,255,255,0.06);border:1px solid rgba(96,150,245,0.3);border-radius:5px;padding:6px 10px;font-size:11px;color:#fff;outline:none;font-family:Inter,sans-serif"/>
                   <button onclick="saveOneEdit('${f.key}',document.getElementById('input-${f.key}').value,${i});document.getElementById('edit-${f.key}').style.display='none';" 
