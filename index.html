@@ -1062,14 +1062,14 @@ function doReset(){
 function doDownload(){
   if(!rows.length){alert('Upload CSV first');return;}
   
-  // Take original rows and only update the fields that have suggestions
-  // This preserves ALL original columns exactly as Orange Logic needs
+  // Get original column order from first row
+  const originalKeys = Object.keys(rows[0]._original||{});
+  
+  // Take original rows and only update the fields that need changing
   const corrected = rows.map((r,i) => {
-    // Start with the complete original row
     const newRow = {...r._original};
     
-    // Only update fields that are missing and have suggestions
-    // Use reviewer decisions if available, otherwise use generated suggestions
+    // Update only missing fields with suggestions or decisions
     if(r._m.includes('Headline')){
       newRow['Headline'] = assetDecisions['hl-'+i] || r._hl || '';
     }
@@ -1089,11 +1089,32 @@ function doDownload(){
     return newRow;
   });
   
-  // Write CSV preserving original column order
-  const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.json_to_sheet(corrected);
-  XLSX.utils.book_append_sheet(wb, ws, 'Re-Import');
-  XLSX.writeFile(wb, 'reimport_ready.csv');
+  // Build CSV manually to preserve exact column order and formatting
+  const headers = originalKeys;
+  const csvRows = [headers.map(h=>'"'+h+'"').join(',')];
+  
+  corrected.forEach(row => {
+    const values = headers.map(h => {
+      const val = String(row[h]||'');
+      // Wrap in quotes and escape any quotes inside
+      return '"' + val.replace(/"/g,'""') + '"';
+    });
+    csvRows.push(values.join(','));
+  });
+  
+  const csvContent = csvRows.join('
+');
+  
+  // Download as plain CSV file
+  const blob = new Blob([csvContent], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'reimport_ready.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 
