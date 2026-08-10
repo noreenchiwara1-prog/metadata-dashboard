@@ -50,7 +50,11 @@ function renderHealth(){
   // Health folders
   const fc={},fm={};
   rows.filter(r=>r._bad).forEach(r=>{
-    const f=r['Folder Path']||'Unknown';
+    const _fullPath=String(r['Folder Path']||'Unknown');
+    // Group by meaningful folder level - skip filenames with dots
+    const _parts=_fullPath.split('/').map(x=>x.trim()).filter(p=>p&&!p.includes('.'));
+    // Use level 4 (event level) if available, otherwise use deepest available
+    const f=_parts[3]||_parts[2]||_parts[1]||_parts[0]||'Unknown';
     if(!fc[f]){fc[f]=0;fm[f]=new Set();}
     fc[f]++;r._m.forEach(m=>fm[f].add(m));
   });
@@ -113,7 +117,11 @@ function renderHealth(){
   // Health folders
   const fc={},fm={};
   rows.filter(r=>r._bad).forEach(r=>{
-    const f=r['Folder Path']||'Unknown';
+    const _fullPath=String(r['Folder Path']||'Unknown');
+    // Group by meaningful folder level - skip filenames with dots
+    const _parts=_fullPath.split('/').map(x=>x.trim()).filter(p=>p&&!p.includes('.'));
+    // Use level 4 (event level) if available, otherwise use deepest available
+    const f=_parts[3]||_parts[2]||_parts[1]||_parts[0]||'Unknown';
     if(!fc[f]){fc[f]=0;fm[f]=new Set();}
     fc[f]++;r._m.forEach(m=>fm[f].add(m));
   });
@@ -956,35 +964,15 @@ rows=rows.map(r=>{
             // Always set visibility suggestion
             r._visNeedsChange=_visNeedsChange;
             if(r._m.includes('Headline')){
-              // SMART HEADLINE: combine event from folder + cleaned caption
-              const _cap2=String(r['Caption Description']||'').trim();
-              const _fp2=String(r['Folder Path']||'').trim();
-              
-              // Get event from folder — skip filename parts containing dots
-              const _fparts2=_fp2.split('/').map(x=>x.trim()).filter(Boolean);
-              const _nonFile=_fparts2.filter(p=>!p.includes('.'));
-              const _event2=_nonFile.length>0?_nonFile[_nonFile.length-1]:(_fparts2.length>=2?_fparts2[_fparts2.length-2]:_fparts2[0]||'');
-              
-              // Clean caption — remove dates and credit info
-              let _cleanCap=_cap2
-                .replace(/Photo\s+by\b[^,.]*/gi,'')
-                .replace(/Credit\s*:\s*[^,.]*/gi,'')
-                .replace(/IMF\s+Photo\/[^,.]*/gi,'')
-                .replace(/(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s*\d{4}/gi,'')
-                .replace(/\d{1,2}\s+(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}/gi,'')
-                .replace(/\b\d{4}\b/g,'')
-                .replace(/\s{2,}/g,' ')
-                .replace(/^[,;.\s]+|[,;.\s]+$/g,'')
-                .trim();
-              
-              // Combine event + cleaned caption
-              if(_event2&&_cleanCap){
-                const _combo=_event2+': '+_cleanCap;
-                r._hl=_combo.length>250?_combo.slice(0,250)+'...':_combo;
-              } else if(_event2){
-                r._hl=_event2;
-              } else if(_cleanCap){
-                r._hl=_cleanCap.length>250?_cleanCap.slice(0,250)+'...':_cleanCap;
+              // HEADLINE = full caption as is
+              // If no caption use last folder part
+              const _capFull=String(r['Caption Description']||'').trim();
+              const _fp3=String(r['Folder Path']||'').trim();
+              if(_capFull){
+                r._hl=_capFull;
+              } else if(_fp3){
+                const _fp3parts=_fp3.split('/').map(x=>x.trim()).filter(p=>p&&!p.includes('.'));
+                r._hl=_fp3parts[_fp3parts.length-1]||_fp3parts[0]||'Fill in manually';
               } else {
                 r._hl='Fill in manually';
               }
@@ -1160,7 +1148,11 @@ function renderOverview(){
   // Folder list
   const fc={},fm={};
   rows.filter(r=>r._bad).forEach(r=>{
-    const f=r['Folder Path']||'Unknown';
+    const _fullPath=String(r['Folder Path']||'Unknown');
+    // Group by meaningful folder level - skip filenames with dots
+    const _parts=_fullPath.split('/').map(x=>x.trim()).filter(p=>p&&!p.includes('.'));
+    // Use level 4 (event level) if available, otherwise use deepest available
+    const f=_parts[3]||_parts[2]||_parts[1]||_parts[0]||'Unknown';
     if(!fc[f]){fc[f]=0;fm[f]=new Set();}
     fc[f]++;r._m.forEach(m=>fm[f].add(m));
   });
@@ -1235,31 +1227,7 @@ function renderAssetList(data){
     if(r._hl) fields.push({label:'Headline', val:r._hl, key:'hl-'+i});
     if(r._cap) fields.push({label:'Caption', val:r._cap, key:'cap-'+i});
     if(r._cr) fields.push({label:'Credit', val:r._cr, key:'cr-'+i});
-    // Show Production Date for reference — convert Excel serial if needed
-    let _pdRaw=String(r['Production Date']||'').trim();
-    let _pdFormatted='';
-    if(_pdRaw){
-      // Check if it is an Excel serial number (pure number)
-      const _pdNum=parseFloat(_pdRaw);
-      if(!isNaN(_pdNum)&&_pdRaw===String(_pdNum)){
-        // Convert Excel serial to date
-        // Excel serial 1 = Jan 1 1900, but Excel incorrectly treats 1900 as leap year
-        const _excelEpoch=new Date(1899,11,30);
-        const _d=new Date(_excelEpoch.getTime()+_pdNum*86400000);
-        _pdFormatted=_d.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
-      } else {
-        // Try parsing as normal date string
-        try{
-          const _d=new Date(_pdRaw);
-          if(!isNaN(_d.getTime())){
-            _pdFormatted=_d.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
-          } else {
-            _pdFormatted=_pdRaw;
-          }
-        }catch(e){_pdFormatted=_pdRaw;}
-      }
-    }
-    if(_pdFormatted) fields.push({label:'Production Date', val:_pdFormatted, key:'pd-'+i, readonly:true});
+    // Production Date removed from review — already visible in caption
     // Visibility is always set to Internal Use Only in the CSV automatically
     // No need to show it here for review
 
@@ -1279,14 +1247,21 @@ function renderAssetList(data){
         </div>
         <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
           ${r._m.map(m=>`<span class="badge b-r">${m}</span>`).join('')}
-          ${r['Asset URL']?`<a href="${r['Asset URL']}" target="_blank" onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:3px;padding:4px 10px;border-radius:6px;border:1px solid rgba(96,150,245,0.25);color:#7aa3f0;font-size:10px;text-decoration:none;white-space:nowrap">Open in Orange Logic ↗</a>`:''}
+          ${r['Asset URL']?`<a href="${r['Asset URL']}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation();window.open('${r['Asset URL']}','_blank');return false;" style="display:inline-flex;align-items:center;gap:3px;padding:4px 10px;border-radius:6px;border:1px solid rgba(96,150,245,0.25);color:#7aa3f0;font-size:10px;text-decoration:none;white-space:nowrap;cursor:pointer">Open in Orange Logic ↗</a>`:'<span style="font-size:10px;color:rgba(255,255,255,0.2);padding:4px 10px">No link available</span>'}
           <svg id="chevron-${i}" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transition:transform 0.2s;flex-shrink:0" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
         </div>
       </div>
       <!-- Expandable suggestions -->
       <div id="asset-expand-${i}" style="display:none;padding:0 16px 16px;border-top:1px solid rgba(255,255,255,0.05)">
         <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px">
-          ${fields.map(f=>`
+          ${fields.map(f=>f.readonly?`
+            <div style="background:rgba(96,150,245,0.05);border:1px solid rgba(96,150,245,0.15);border-radius:8px;padding:10px 12px">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+                <div style="font-size:9px;font-weight:700;color:rgba(96,150,245,0.7);text-transform:uppercase;letter-spacing:0.07em">${f.label}</div>
+                <div style="font-size:9px;color:rgba(255,255,255,0.2);font-style:italic">For reference only</div>
+              </div>
+              <div style="font-size:11px;color:rgba(255,255,255,0.5)">${f.val}</div>
+            </div>` : `
             <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:10px 12px">
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
                 <div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:0.07em">${f.label}</div>
@@ -1580,7 +1555,11 @@ function renderHealth(){
   // Health folders
   const fc={},fm={};
   rows.filter(r=>r._bad).forEach(r=>{
-    const f=r['Folder Path']||'Unknown';
+    const _fullPath=String(r['Folder Path']||'Unknown');
+    // Group by meaningful folder level - skip filenames with dots
+    const _parts=_fullPath.split('/').map(x=>x.trim()).filter(p=>p&&!p.includes('.'));
+    // Use level 4 (event level) if available, otherwise use deepest available
+    const f=_parts[3]||_parts[2]||_parts[1]||_parts[0]||'Unknown';
     if(!fc[f]){fc[f]=0;fm[f]=new Set();}
     fc[f]++;r._m.forEach(m=>fm[f].add(m));
   });
