@@ -968,6 +968,8 @@ function loadCSV(e){
           const data=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:''});
           rows=data.map(row=>{
             const r={};
+            // Store the complete original row for re-import
+            r._original = {...row};
             // Read every column directly by exact name
             r['File Name']=String(row['Original file name']||row['Original File Name']||'').trim();
             r['Caption Description']=String(row['Caption Description']||row['Caption Description / Data']||'').trim();
@@ -1058,10 +1060,40 @@ function doReset(){
 }
 
 function doDownload(){
-  if(!reimport.length){alert('Upload CSV first');return;}
-  const wb=XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(reimport),'Re-Import');
-  XLSX.writeFile(wb,'reimport_ready.csv');
+  if(!rows.length){alert('Upload CSV first');return;}
+  
+  // Take original rows and only update the fields that have suggestions
+  // This preserves ALL original columns exactly as Orange Logic needs
+  const corrected = rows.map((r,i) => {
+    // Start with the complete original row
+    const newRow = {...r._original};
+    
+    // Only update fields that are missing and have suggestions
+    // Use reviewer decisions if available, otherwise use generated suggestions
+    if(r._m.includes('Headline')){
+      newRow['Headline'] = assetDecisions['hl-'+i] || r._hl || '';
+    }
+    if(r._m.includes('Caption')){
+      newRow['Caption Description'] = assetDecisions['cap-'+i] || r._cap || '';
+    }
+    if(r._m.includes('Credit')){
+      newRow['Credit'] = assetDecisions['cr-'+i] || r._cr || '';
+    }
+    if(r._m.includes('Production Date')){
+      const pdDecision = assetDecisions['pd-'+i];
+      if(pdDecision) newRow['Production Date'] = pdDecision;
+    }
+    // Always update visibility class
+    newRow['Visibility class'] = 'Internal Use Only';
+    
+    return newRow;
+  });
+  
+  // Write CSV preserving original column order
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(corrected);
+  XLSX.utils.book_append_sheet(wb, ws, 'Re-Import');
+  XLSX.writeFile(wb, 'reimport_ready.csv');
 }
 
 
