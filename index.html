@@ -973,18 +973,46 @@ function loadCSV(e){
             // Store the complete original row for re-import
             r._original = {...row};
             // Read every column directly by exact name
-            r['File Name']=String(row['Original file name']||row['Original File Name']||'').trim();
-            r['Caption Description']=String(row['Caption Description']||row['Caption Description / Data']||'').trim();
-            r['Folder Path']=String(row['Folder path (link)']||row['Folder Path']||row['Folder path']||'').trim();
-            r['Asset URL']=String(row['Link to open order in Cortex']||row['Link to view parent in Cortex (URL Only)']||'').trim();
-            r['Raw Identifier']=String(row['Raw Identifier ']||row['Raw Identifier']||row['Unique identifier']||'').trim();
-            r['Production Date']=String(row['Production Date']||'').trim();
-            r['Visibility Class']=String(row['Visibility class']||row['Visibility Class']||'').trim();
-            r['Created by']=String(row['Created by']||'').trim();
-            r['Created By email']=String(row['Created By']||'').trim();
-            r['Last Modified By']=String(row['Last Modified By']||'').trim();
-            r['Credit']=String(row['Credit']||'').trim();
-            r['Headline']=String(row['Headline']||'').trim();
+            // Handle both CSV formats - original and re-importable
+            // Re-importable has column names like "Headline|CoreField.CaptionShort"
+            // Find columns by checking all keys
+            var _findCol=function(keys,matches){
+              for(var k of keys){
+                var kl=k.toLowerCase();
+                for(var m of matches){
+                  if(kl.startsWith(m.toLowerCase())||kl.includes('|'+m.toLowerCase()))
+                    return k;
+                }
+              }
+              return null;
+            };
+            var _keys=Object.keys(row);
+            var _hlKey=_findCol(_keys,['headline','CoreField.CaptionShort']);
+            var _capKey=_findCol(_keys,['caption description','CoreField.CaptionLong']);
+            var _crKey=_findCol(_keys,['credit','IMF.Credit']);
+            var _visKey=_findCol(_keys,['visibility class','visibility','CoreField.Purpose']);
+            var _pdKey=_findCol(_keys,['production date','CoreField.DocDate']);
+            var _fnKey=_findCol(_keys,['original file name','CoreField.OriginalFileName','original file name']);
+            var _rawKey=_findCol(_keys,['raw identifier','RawIdentifier']);
+            var _linkKey=_findCol(_keys,['link to open order','link to view parent','CortexParentLinkRaw']);
+            var _fpKey=_findCol(_keys,['folder path','FolderPathHTML','AssetPath']);
+            var _lmbKey=_findCol(_keys,['last modified by','LastModifiedBy']);
+            var _createdKey=_findCol(_keys,['created by','Created By']);
+
+            r['File Name']=String(_fnKey?row[_fnKey]:'').trim();
+            r['Caption Description']=String(_capKey?row[_capKey]:'').trim();
+            r['Folder Path']=String(_fpKey?row[_fpKey]:'').trim();
+            r['Asset URL']=String(_linkKey?row[_linkKey]:'').trim();
+            r['Raw Identifier']=String(_rawKey?row[_rawKey]:'').trim();
+            r['Production Date']=String(_pdKey?row[_pdKey]:'').trim();
+            r['Visibility Class']=String(_visKey?row[_visKey]:'').trim();
+            r['Created By email']=String(_createdKey?row[_createdKey]:'').trim();
+            r['Last Modified By']=String(_lmbKey?row[_lmbKey]:'').trim();
+            r['Credit']=String(_crKey?row[_crKey]:'').trim();
+            r['Headline']=String(_hlKey?row[_hlKey]:'').trim();
+            
+            // Store key mappings for download
+            r._keys={hl:_hlKey,cap:_capKey,cr:_crKey,vis:_visKey,pd:_pdKey};
             // Copy remaining columns
             Object.keys(row).forEach(k=>{if(r[k]===undefined)r[k]=row[k];});
             // Fallback asset URL from Raw Identifier
@@ -1064,69 +1092,70 @@ function doReset(){
 function doDownload(){
   if(!rows.length||!window._rawCSV){alert('Upload CSV first');return;}
   
-  // Parse the raw CSV into lines
   var rawLines=window._rawCSV.split('\n');
   var headerLine=rawLines[0];
   
-  // Parse header to find column indices
+  // Parse headers to find column indices by matching key names
   var headers=[];
-  var hMatch=headerLine.match(/"[^"]*"|[^,]+/g)||[];
-  hMatch.forEach(function(h){headers.push(h.replace(/^"|"$/g,''));});
+  var hMatch=headerLine.match(/"(?:[^"]|"")*"|[^,]*/g)||[];
+  hMatch.forEach(function(h){headers.push(h.replace(/^"|"$/g,'').replace(/""/g,'"'));});
   
-  var hlIdx=headers.indexOf('Headline');
-  var capIdx=headers.indexOf('Caption Description');
-  var crIdx=headers.indexOf('Credit');
-  var visIdx=headers.indexOf('Visibility class');
-  var pdIdx=headers.indexOf('Production Date');
+  function findIdx(matches){
+    for(var i=0;i<headers.length;i++){
+      var hl=headers[i].toLowerCase();
+      for(var m of matches){
+        if(hl.startsWith(m.toLowerCase())||hl.includes(m.toLowerCase()))
+          return i;
+      }
+    }
+    return -1;
+  }
   
-  // Process each data row
+  var hlIdx=findIdx(['headline']);
+  var capIdx=findIdx(['caption description']);
+  var crIdx=findIdx(['credit']);
+  var visIdx=findIdx(['visibility class','visibility']);
+  var pdIdx=findIdx(['production date']);
+  
+  function parseLine(line){
+    var fields=[];
+    var inQ=false,cur='';
+    for(var c=0;c<line.length;c++){
+      var ch=line[c];
+      if(ch==='"'){
+        if(inQ&&line[c+1]==='"'){cur+='"';c++;}
+        else inQ=!inQ;
+      } else if(ch===','&&!inQ){fields.push(cur);cur='';}
+      else cur+=ch;
+    }
+    fields.push(cur);
+    return fields;
+  }
+  
   var outputLines=[headerLine];
   
   rows.forEach(function(r,i){
-    // Get the original raw line (i+1 because line 0 is header)
     var rawLine=rawLines[i+1]||'';
     if(!rawLine.trim()){outputLines.push(rawLine);return;}
+    var fields=parseLine(rawLine);
     
-    // Parse the line into fields
-    var fields=[];
-    var inQuote=false;
-    var current='';
-    for(var c=0;c<rawLine.length;c++){
-      var ch=rawLine[c];
-      if(ch==='"'){
-        if(inQuote&&rawLine[c+1]==='"'){current+='"';c++;}
-        else inQuote=!inQuote;
-      } else if(ch===','&&!inQuote){
-        fields.push(current);current='';
-      } else {
-        current+=ch;
-      }
-    }
-    fields.push(current);
-    
-    // Update only the fields that need changing
-    function setField(idx,val){
-      if(idx>=0)fields[idx]=val;
-    }
+    function setF(idx,val){if(idx>=0&&idx<fields.length)fields[idx]=val;}
     
     if(r._m.includes('Headline'))
-      setField(hlIdx,assetDecisions['hl-'+i]||r._hl||fields[hlIdx]||'');
+      setF(hlIdx,assetDecisions['hl-'+i]||r._hl||fields[hlIdx]||'');
     if(r._m.includes('Caption'))
-      setField(capIdx,assetDecisions['cap-'+i]||r._cap||fields[capIdx]||'');
+      setF(capIdx,assetDecisions['cap-'+i]||r._cap||fields[capIdx]||'');
     if(r._m.includes('Credit'))
-      setField(crIdx,assetDecisions['cr-'+i]||r._cr||fields[crIdx]||'');
+      setF(crIdx,assetDecisions['cr-'+i]||r._cr||fields[crIdx]||'');
     if(r._m.includes('Production Date')){
       var pd=assetDecisions['pd-'+i];
-      if(pd)setField(pdIdx,pd);
+      if(pd)setF(pdIdx,pd);
     }
-    // Always set visibility to Internal Use Only
-    setField(visIdx,'Internal Use Only');
+    setF(visIdx,'Internal Use Only');
     
-    // Rebuild the line with proper quoting
     var newLine=fields.map(function(f){
       return'"'+String(f||'').replace(/"/g,'""')+'"';
     }).join(',');
-    
     outputLines.push(newLine);
   });
   
