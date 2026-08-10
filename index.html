@@ -1061,58 +1061,30 @@ function doReset(){
 
 function doDownload(){
   if(!rows.length){alert('Upload CSV first');return;}
-  
-  // Get original column order from first row
-  const originalKeys = Object.keys(rows[0]._original||{});
-  
-  // Take original rows and only update the fields that need changing
-  const corrected = rows.map((r,i) => {
-    const newRow = {...r._original};
-    
-    // Update only missing fields with suggestions or decisions
-    if(r._m.includes('Headline')){
-      newRow['Headline'] = assetDecisions['hl-'+i] || r._hl || '';
-    }
-    if(r._m.includes('Caption')){
-      newRow['Caption Description'] = assetDecisions['cap-'+i] || r._cap || '';
-    }
-    if(r._m.includes('Credit')){
-      newRow['Credit'] = assetDecisions['cr-'+i] || r._cr || '';
-    }
-    if(r._m.includes('Production Date')){
-      const pdDecision = assetDecisions['pd-'+i];
-      if(pdDecision) newRow['Production Date'] = pdDecision;
-    }
-    // Always update visibility class
-    newRow['Visibility class'] = 'Internal Use Only';
-    
+  const originalKeys=Object.keys(rows[0]._original||{});
+  const corrected=rows.map(function(r,i){
+    var newRow=Object.assign({},r._original);
+    if(r._m.includes('Headline')){newRow['Headline']=assetDecisions['hl-'+i]||r._hl||'';}
+    if(r._m.includes('Caption')){newRow['Caption Description']=assetDecisions['cap-'+i]||r._cap||'';}
+    if(r._m.includes('Credit')){newRow['Credit']=assetDecisions['cr-'+i]||r._cr||'';}
+    if(r._m.includes('Production Date')){var pd=assetDecisions['pd-'+i];if(pd)newRow['Production Date']=pd;}
+    newRow['Visibility class']='Internal Use Only';
     return newRow;
   });
-  
-  // Build CSV manually to preserve exact column order and formatting
-  const headers = originalKeys;
-  const csvRows = [headers.map(h=>'"'+h+'"').join(',')];
-  
-  corrected.forEach(row => {
-    const values = headers.map(h => {
-      const val = String(row[h]||'');
-      // Wrap in quotes and escape any quotes inside
-      return '"' + val.replace(/"/g,'""') + '"';
+  var lines=[originalKeys.map(function(h){return'"'+h+'"';}).join(',')];
+  corrected.forEach(function(row){
+    var vals=originalKeys.map(function(h){
+      var v=String(row[h]||'').replace(/"/g,'""');
+      return'"'+v+'"';
     });
-    csvRows.push(values.join(','));
+    lines.push(vals.join(','));
   });
-  
-  const csvContent = csvRows.join('
-');
-  
-  // Download as plain CSV file
-  const blob = new Blob([csvContent], {type:'text/csv;charset=utf-8;'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'reimport_ready.csv';
-  document.body.appendChild(a);
-  a.click();
+  var csv=lines.join('\r\n');
+  var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  a.href=url;a.download='reimport_ready.csv';
+  document.body.appendChild(a);a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
