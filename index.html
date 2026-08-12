@@ -1029,7 +1029,7 @@ rows=rows.map((r,_ri)=>{
             const _visNeedsChange=_vs.toLowerCase().includes('awaiting')||_vs==='';
             r._bad=r._m.length>0||_visNeedsChange;
             r._rowIndex=0; // index stored separately
-            r._hl=r._cap=r._cr='';r._vis='Internal Use Only';r._crSrc='';
+            r._hl=r._cap=r._cr='';r._vis='Internal use only';r._crSrc='';
             // Always set visibility suggestion
             r._visNeedsChange=_visNeedsChange;
             if(r._m.includes('Headline')){
@@ -1049,7 +1049,7 @@ rows=rows.map((r,_ri)=>{
             }
             if(r._m.includes('Caption'))r._cap=makeCap(r['Folder Path'],r['Production Date']);
             if(r._m.includes('Credit')){const cr=makeCr(r);r._cr=cr.t;r._crSrc=cr.s;}
-            if(r._m.includes('Visibility'))r._vis='Internal Use Only';
+            if(r._m.includes('Visibility'))r._vis='Internal use only';
             return r;
           });
           reimport=[];
@@ -1149,7 +1149,7 @@ function doDownload(){
     }
     
     // Always change Visibility to Internal Use Only
-    if(visIdx>=0)row[visIdx]='Internal Use Only';
+    if(visIdx>=0)row[visIdx]='Internal use only';
   }
   
   // Write back as CSV
