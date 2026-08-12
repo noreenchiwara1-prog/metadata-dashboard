@@ -977,9 +977,10 @@ function loadCSV(e){
             // Re-importable format uses exact column names with field codes
             var _k=Object.keys(row);
             var _find=function(starts){
-              for(var k of _k){
-                var kl=k.toLowerCase().trim();
-                for(var s of starts){
+              // Search by priority of search terms not column order
+              for(var s of starts){
+                for(var k of _k){
+                  var kl=k.toLowerCase().trim();
                   if(kl===s.toLowerCase()||kl.startsWith(s.toLowerCase()))return k;
                 }
               }
