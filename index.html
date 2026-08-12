@@ -973,32 +973,31 @@ function loadCSV(e){
             // Store the complete original row for re-import
             r._original = {...row};
             // Read every column directly by exact name
-            // Handle both CSV formats - original and re-importable
-            // Re-importable has column names like "Headline|CoreField.CaptionShort"
-            // Find columns by checking all keys
-            var _findCol=function(keys,matches){
-              for(var k of keys){
-                var kl=k.toLowerCase();
-                for(var m of matches){
-                  if(kl.startsWith(m.toLowerCase())||kl.includes('|'+m.toLowerCase()))
-                    return k;
+            // Map columns - handles both CSV formats
+            // Re-importable format uses exact column names with field codes
+            var _k=Object.keys(row);
+            var _find=function(starts){
+              for(var k of _k){
+                var kl=k.toLowerCase().trim();
+                for(var s of starts){
+                  if(kl===s.toLowerCase()||kl.startsWith(s.toLowerCase()))return k;
                 }
               }
               return null;
             };
-            var _keys=Object.keys(row);
-            var _hlKey=_findCol(_keys,['headline','CoreField.CaptionShort']);
-            var _capKey=_findCol(_keys,['caption description','CoreField.CaptionLong']);
-            var _crKey=_findCol(_keys,['credit','IMF.Credit']);
-            var _visKey=_findCol(_keys,['visibility class','visibility','CoreField.Purpose']);
-            var _pdKey=_findCol(_keys,['production date','CoreField.DocDate']);
-            var _fnKey=_findCol(_keys,['original file name','CoreField.OriginalFileName','original file name']);
-            var _rawKey=_findCol(_keys,['raw identifier','RawIdentifier']);
-            var _linkKey=_findCol(_keys,['link to open order','link to view parent','CortexParentLinkRaw']);
-            var _fpKey=_findCol(_keys,['folder path','FolderPathHTML','AssetPath']);
-            var _lmbKey=_findCol(_keys,['last modified by','LastModifiedBy']);
-            var _createdKey=_findCol(_keys,['created by','Created By']);
-
+            
+            var _hlKey=_find(['Headline|','Headline','headline']);
+            var _capKey=_find(['Caption Description / Data|','Caption Description|','Caption Description','caption description']);
+            var _crKey=_find(['Credit|','Credit','credit']);
+            var _visKey=_find(['Visibility Class|','Visibility class|','Visibility Class','Visibility class','visibility']);
+            var _pdKey=_find(['Production Date|','Production Date','production date']);
+            var _fnKey=_find(['Original File Name|','Original file name|','Original File Name','Original file name']);
+            var _rawKey=_find(['Raw Identifier |','Raw Identifier|','Raw Identifier','Unique identifier']);
+            var _linkKey=_find(['Link to view parent in Cortex (URL Only)|','Link to open order in Cortex','link to view','link to open']);
+            var _fpKey=_find(['AssetPath|','Folder path (link)|','Folder path','Folder Path']);
+            var _lmbKey=_find(['Last Modified By|','Last Modified By','last modified by']);
+            var _createdKey=_find(['Created By|','Created by|','Created By','Created by']);
+            
             r['File Name']=String(_fnKey?row[_fnKey]:'').trim();
             r['Caption Description']=String(_capKey?row[_capKey]:'').trim();
             r['Folder Path']=String(_fpKey?row[_fpKey]:'').trim();
@@ -1006,28 +1005,30 @@ function loadCSV(e){
             r['Raw Identifier']=String(_rawKey?row[_rawKey]:'').trim();
             r['Production Date']=String(_pdKey?row[_pdKey]:'').trim();
             r['Visibility Class']=String(_visKey?row[_visKey]:'').trim();
-            r['Created By email']=String(_createdKey?row[_createdKey]:'').trim();
-            r['Last Modified By']=String(_lmbKey?row[_lmbKey]:'').trim();
             r['Credit']=String(_crKey?row[_crKey]:'').trim();
             r['Headline']=String(_hlKey?row[_hlKey]:'').trim();
+            r['Last Modified By']=String(_lmbKey?row[_lmbKey]:'').trim();
+            r['Created By']=String(_createdKey?row[_createdKey]:'').trim();
             
-            // Store key mappings for download
-            r._keys={hl:_hlKey,cap:_capKey,cr:_crKey,vis:_visKey,pd:_pdKey};
-            // Copy remaining columns
-            Object.keys(row).forEach(k=>{if(r[k]===undefined)r[k]=row[k];});
-            // Fallback asset URL from Raw Identifier
+            // Store key names for download
+            r._hlKey=_hlKey;r._capKey=_capKey;r._crKey=_crKey;
+            r._visKey=_visKey;r._pdKey=_pdKey;
+            
+            // Asset URL fallback
             if(!r['Asset URL']&&r['Raw Identifier']){
               r['Asset URL']='https://digitalmedia.imf.org/asset-management/'+r['Raw Identifier'];
             }
             return r;
           });
           
-rows=rows.map(r=>{
+rows=rows.map((r,_ri)=>{
+            r._rowIndex=_ri;
             r._m=getMissing(r);
             // Also flag as bad if visibility is still Awaiting Mandatory Metadata
             const _vs=String(r['Visibility Class']||'').trim();
             const _visNeedsChange=_vs.toLowerCase().includes('awaiting')||_vs==='';
             r._bad=r._m.length>0||_visNeedsChange;
+            r._rowIndex=0; // index stored separately
             r._hl=r._cap=r._cr='';r._vis='Internal Use Only';r._crSrc='';
             // Always set visibility suggestion
             r._visNeedsChange=_visNeedsChange;
@@ -1050,7 +1051,7 @@ rows=rows.map(r=>{
             if(r._m.includes('Visibility'))r._vis='Internal Use Only';
             return r;
           });
-          reimport=rows.filter(r=>r._bad).map(r=>({'File Name':r['File Name']||'','Folder Path':r['Folder Path']||'','Headline':r._hl||r.Headline||'','Caption Description':r._cap||r['Caption Description']||'','Credit':r._cr||r.Credit||'','Visibility Class':r._vis||r['Visibility Class']||'','Production Date':fmtDateISO(r['Production Date']||''),'Asset URL':r['Asset URL']||''}));
+          reimport=[];
           const now=new Date();
           const bad=rows.filter(r=>r._bad).length;
           document.getElementById('ts').textContent='Updated '+now.toLocaleTimeString();
@@ -1092,81 +1093,67 @@ function doReset(){
 function doDownload(){
   if(!rows.length||!window._rawCSV){alert('Upload CSV first');return;}
   
-  var rawLines=window._rawCSV.split('\n');
-  var headerLine=rawLines[0];
+  // Use XLSX to parse - handles multiline fields correctly
+  var wb=XLSX.read(window._rawCSV,{type:'string'});
+  var ws=wb.Sheets[wb.SheetNames[0]];
   
-  // Parse headers to find column indices by matching key names
-  var headers=[];
-  var hMatch=headerLine.match(/"(?:[^"]|"")*"|[^,]*/g)||[];
-  hMatch.forEach(function(h){headers.push(h.replace(/^"|"$/g,'').replace(/""/g,'"'));});
+  // Get as array of arrays to preserve structure
+  var aoa=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+  if(!aoa.length)return;
   
-  function findIdx(matches){
+  var headers=aoa[0];
+  
+  // Find exact column indices
+  function getIdx(start){
     for(var i=0;i<headers.length;i++){
-      var hl=headers[i].toLowerCase();
-      for(var m of matches){
-        if(hl.startsWith(m.toLowerCase())||hl.includes(m.toLowerCase()))
-          return i;
-      }
+      if(String(headers[i]).startsWith(start))return i;
     }
     return -1;
   }
   
-  var hlIdx=findIdx(['headline']);
-  var capIdx=findIdx(['caption description']);
-  var crIdx=findIdx(['credit']);
-  var visIdx=findIdx(['visibility class','visibility']);
-  var pdIdx=findIdx(['production date']);
+  var hlIdx=getIdx('Headline|');
+  var capIdx=getIdx('Caption Description');
+  var visIdx=getIdx('Visibility Class|');
+  var crIdx=getIdx('Credit|');
+  var pdIdx=getIdx('Production Date|');
   
-  function parseLine(line){
-    var fields=[];
-    var inQ=false,cur='';
-    for(var c=0;c<line.length;c++){
-      var ch=line[c];
-      if(ch==='"'){
-        if(inQ&&line[c+1]==='"'){cur+='"';c++;}
-        else inQ=!inQ;
-      } else if(ch===','&&!inQ){fields.push(cur);cur='';}
-      else cur+=ch;
+  // Process each data row - only change what is empty
+  for(var i=1;i<aoa.length;i++){
+    var row=aoa[i];
+    var ri=i-1; // row index in our rows array
+    var r=rows[ri];
+    if(!r)continue;
+    
+    // Fill Headline if empty - use reviewer decision or caption
+    if(hlIdx>=0&&!String(row[hlIdx]||'').trim()){
+      row[hlIdx]=assetDecisions['hl-'+ri]||r._hl||String(row[capIdx]||'')||'';
     }
-    fields.push(cur);
-    return fields;
+    
+    // Fill Caption if empty
+    if(capIdx>=0&&!String(row[capIdx]||'').trim()){
+      row[capIdx]=assetDecisions['cap-'+ri]||r._cap||'';
+    }
+    
+    // Fill Credit if empty
+    if(crIdx>=0&&!String(row[crIdx]||'').trim()){
+      row[crIdx]=assetDecisions['cr-'+ri]||r._cr||'';
+    }
+    
+    // Fill Production Date if reviewer entered one
+    if(pdIdx>=0){
+      var pd=assetDecisions['pd-'+ri];
+      if(pd&&!String(row[pdIdx]||'').trim())row[pdIdx]=pd;
+    }
+    
+    // Always change Visibility to Internal Use Only
+    if(visIdx>=0)row[visIdx]='Internal Use Only';
   }
   
-  var outputLines=[headerLine];
-  
-  rows.forEach(function(r,i){
-    var rawLine=rawLines[i+1]||'';
-    if(!rawLine.trim()){outputLines.push(rawLine);return;}
-    var fields=parseLine(rawLine);
-    
-    function setF(idx,val){if(idx>=0&&idx<fields.length)fields[idx]=val;}
-    
-    if(r._m.includes('Headline'))
-      setF(hlIdx,assetDecisions['hl-'+i]||r._hl||fields[hlIdx]||'');
-    if(r._m.includes('Caption'))
-      setF(capIdx,assetDecisions['cap-'+i]||r._cap||fields[capIdx]||'');
-    if(r._m.includes('Credit'))
-      setF(crIdx,assetDecisions['cr-'+i]||r._cr||fields[crIdx]||'');
-    if(r._m.includes('Production Date')){
-      var pd=assetDecisions['pd-'+i];
-      if(pd)setF(pdIdx,pd);
-    }
-    setF(visIdx,'Internal Use Only');
-    
-    var newLine=fields.map(function(f){
-      return'"'+String(f||'').replace(/"/g,'""')+'"';
-    }).join(',');
-    outputLines.push(newLine);
-  });
-  
-  var csv=outputLines.join('\n');
-  var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
-  var url=URL.createObjectURL(blob);
-  var a=document.createElement('a');
-  a.href=url;a.download='reimport_ready.csv';
-  document.body.appendChild(a);a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  // Write back as CSV
+  var outWs=XLSX.utils.aoa_to_sheet(aoa);
+  var outWb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(outWb,outWs,'Sheet1');
+  XLSX.writeFile(outWb,'reimport_ready.csv',{bookType:'csv'});
 }
 
 
