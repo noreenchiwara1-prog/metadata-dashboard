@@ -1038,7 +1038,8 @@ rows=rows.map((r,_ri)=>{
               const _capFull=String(r['Caption Description']||'').trim();
               const _fp3=String(r['Folder Path']||'').trim();
               if(_capFull){
-                r._hl=_capFull;
+                // Orange Logic headline limit is 300 characters
+                r._hl=_capFull.length>300?_capFull.slice(0,300):_capFull;
               } else if(_fp3){
                 const _fp3parts=_fp3.split('/').map(x=>x.trim()).filter(p=>p&&!p.includes('.'));
                 r._hl=_fp3parts[_fp3parts.length-1]||_fp3parts[0]||'Fill in manually';
@@ -1125,8 +1126,10 @@ function doDownload(){
     if(!r)continue;
     
     // Fill Headline if empty - use reviewer decision or caption
+    // Orange Logic limit: 300 characters maximum
     if(hlIdx>=0&&!String(row[hlIdx]||'').trim()){
-      row[hlIdx]=assetDecisions['hl-'+ri]||r._hl||String(row[capIdx]||'')||'';
+      var hlVal=assetDecisions['hl-'+ri]||r._hl||String(row[capIdx]||'')||'';
+      row[hlIdx]=hlVal.length>300?hlVal.slice(0,300):hlVal;
     }
     
     // Fill Caption if empty
