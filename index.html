@@ -932,12 +932,26 @@ function makeCap(folder,date){
   return 'Fill in manually';
 }
 function makeCr(row){
-  // Use Created by (real name) not Created By (email)
-  const c=String(row['Created by']||row['Created By']||'').trim();
-  const m=String(row['Last Modified By']||'').trim();
-  // Skip email addresses
-  if(realName(c)&&!c.includes('@'))return{t:c,s:'creator'};
-  if(realName(m)&&!m.includes('@'))return{t:m,s:'creator'};
+  // Extract photographer from caption text
+  // Handles: IMF Photo/Name, IMF Photograph/Name, Photo by Name
+  // With or without spaces, any capitalisation
+  const cap=String(row['Caption Description']||'').trim();
+  
+  if(cap){
+    // Pattern 1: IMF Photo/Name or IMF Photograph/Name
+    var m1=cap.match(/IMF\s*Photo(?:graph)?\s*\/\s*([A-Za-z][A-Za-z\s]+?)(?:\.|,|$|\n)/i);
+    if(m1&&m1[1].trim().length>2)return{t:'IMF Photo/'+m1[1].trim(),s:'caption'};
+    
+    // Pattern 2: Photo by Name
+    var m2=cap.match(/Photo(?:graph)?\s+by\s+([A-Za-z][A-Za-z\s]+?)(?:\.|,|$|\n)/i);
+    if(m2&&m2[1].trim().length>2)return{t:'IMF Photo/'+m2[1].trim(),s:'caption'};
+    
+    // Pattern 3: © Name or © IMF/Name
+    var m3=cap.match(/©\s*(?:IMF\s*\/\s*)?([A-Za-z][A-Za-z\s]+?)(?:\.|,|\/|$|\n)/i);
+    if(m3&&m3[1].trim().length>2&&!m3[1].toLowerCase().includes('imf'))return{t:m3[1].trim(),s:'caption'};
+  }
+  
+  // Default
   return{t:'IMF Photo',s:'default'};
 }
 function getMissing(row){
@@ -1041,13 +1055,12 @@ rows=rows.map((r,_ri)=>{
               // HEADLINE = full caption as is
               // If no caption use last folder part
               const _capFull=String(r['Caption Description']||'').trim();
+              // Use last meaningful folder name as headline
               const _fp3=String(r['Folder Path']||'').trim();
-              if(_capFull){
-                // Orange Logic headline limit is 300 characters
-                r._hl=_capFull.length>300?_capFull.slice(0,300):_capFull;
-              } else if(_fp3){
-                const _fp3parts=_fp3.split('/').map(x=>x.trim()).filter(p=>p&&!p.includes('.'));
-                r._hl=_fp3parts[_fp3parts.length-1]||_fp3parts[0]||'Fill in manually';
+              if(_fp3){
+                const _fp3parts=_fp3.split('/').map(x=>x.trim()).filter(p=>p&&p!=='Library'&&!p.includes('.'));
+                const _lastFolder=_fp3parts[_fp3parts.length-1]||'';
+                r._hl=_lastFolder.length>300?_lastFolder.slice(0,300):_lastFolder;
               } else {
                 r._hl='Fill in manually';
               }
@@ -1133,7 +1146,7 @@ function doDownload(){
     // Fill Headline if empty - use reviewer decision or caption
     // Orange Logic limit: 300 characters maximum
     if(hlIdx>=0&&!String(row[hlIdx]||'').trim()){
-      var hlVal=assetDecisions['hl-'+ri]||r._hl||String(row[capIdx]||'')||'';
+      var hlVal=assetDecisions['hl-'+ri]||r._hl||'';
       row[hlIdx]=hlVal.length>300?hlVal.slice(0,300):hlVal;
     }
     
